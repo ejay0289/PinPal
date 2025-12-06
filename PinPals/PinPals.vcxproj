@@ -123,6 +123,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="dbg.h" />
     <ClInclude Include="PinPal.h" />
     <ClInclude Include="Resource.h" />
   </ItemGroup>

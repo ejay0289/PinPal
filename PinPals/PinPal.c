@@ -7,6 +7,7 @@
 #include <stdio.h>
 
 #include "PinPal.h"
+#include "dbg.h"
 
 #define CON 0
 //control constants
