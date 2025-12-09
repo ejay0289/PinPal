@@ -760,7 +760,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     case WM_APP_SAVE:
     {
-        LPARAM noteHandle = (LPARAM)lParam;
+        HWND noteHandle = (HWND)lParam;
         HWND hEdit = GetDlgItem(noteHandle, ID_TEXT);
         
 
@@ -789,7 +789,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                 sqlite3_int64 lastId = sqlite3_last_insert_rowid(db);
                 idIsPresent = 1;
                 noteUpdateId = lastId;
-                SetWindowLongPtr(hEdit, NOTE_ID, (LONG_PTR)lastId);
+                SetWindowLongPtr(noteHandle, NOTE_ID, (LONG_PTR)lastId);
                 notes_true[0].id = (int)lastId;
                 strncpy_s(notes_true[0].title, sizeof(notes_true[0].title), "New Note", _TRUNCATE);
                 strncpy_s(notes_true[0].text, sizeof(notes_true[0].text), buffer, _TRUNCATE);
