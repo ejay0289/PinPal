@@ -129,8 +129,6 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         }
         else{
 
-
-
             switch (notifCode) {
             case BN_CLICKED:
                 if (ctrlId == ID_PIN_BUTTON) {
@@ -159,7 +157,7 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                     WORD notifCode = BN_CLICKED; 
 
                     PostMessage(hmainWindowHandle, WM_COMMAND, MAKELPARAM(ctrlId, notifCode), 0);
-                    PostMessage(hmainWindowHandle, WM_PAINT, (WPARAM)hwnd, 0);
+                    //PostMessage(hmainWindowHandle, WM_PAINT, (WPARAM)hwnd, 0);
                 }
 
                 else if (ctrlId == ID_SAVE_NOTE_BUTTON) {
@@ -175,6 +173,7 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         if (wParam == 1) {
             KillTimer(hwnd, 1);
             SendMessage(hmainWindowHandle, WM_APP_SAVE,(WPARAM)hwnd, (LPARAM)hwnd);
+            SendMessage(hmainWindowHandle, WM_PAINT, (WPARAM)hwnd, (LPARAM)hwnd);
         }
         break;
 
@@ -229,9 +228,16 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
 	case WM_LBUTTONDOWN:
 	{
+
+        struct ScrollState* pScrollState = (struct ScrollState*)GetWindowLongPtr(hwnd, sizeof(LONG_PTR) * 2);
 		POINT ptClick;
 		ptClick.x = GET_X_LPARAM(lParam);
 		ptClick.y = GET_Y_LPARAM(lParam);
+
+        POINT ptActual;
+        ptActual.x = ptClick.x + pScrollState->scrollPosX;
+        ptActual.y = ptClick.y + pScrollState->scrollPosY;
+
 		//Note deletion
 		for(int i = 0; i < noteCount; i++)
 		{
@@ -242,13 +248,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             rectXButton.right  = notes_true[i].rect.right;
             rectXButton.bottom = notes_true[i].rect.top + buttonSize;
 			
-            if (PtInRect(&rectXButton, ptClick))
+            if (PtInRect(&rectXButton, ptActual))
             {
                 SendMessage(hwnd, WM_APP_NOTE_DELETED, (WPARAM)notes_true[i].id, (LPARAM)notes_true[i].id);
                 break;
             }
             
-			if(PtInRect(&notes_true[i].rect,ptClick) && PtInRect(&notes_true[i].rect, ptClick))
+			if(PtInRect(&notes_true[i].rect,ptActual))
 			{
                 int noteId = notes_true[i].id;
                 int noteLength = notes_true[i].textLen;
@@ -492,6 +498,16 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     case WM_PAINT:
     {
+
+        HWND hEdit = (HWND)lParam;
+        int length = GetWindowTextLength(hEdit);
+        //if (length <= 0) break;
+        char* buffer = malloc(length + 1);
+        GetWindowText(hEdit, buffer, length + 1);
+
+
+
+
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hwnd, &ps);
 
@@ -505,6 +521,15 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
         int theY = NOTE_MARGIN +50;
 
+     /*   Rectangle(hdc, notes_true[0].rect.left, notes_true[0].rect.top, notes_true[0].rect.right, notes_true[0].rect.bottom);
+        RECT newNote = notes_true[0].rect;
+         DrawTextA(
+             hdc,
+             buffer,
+             -1,
+             &newNote,
+             DT_LEFT | DT_TOP | DT_WORDBREAK
+         );*/
 
     //Draw notes to main window
         for (int i = 0; i < noteCount; i++)
@@ -649,25 +674,32 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                         else {
 							//TODO:Shift all notes up an index and place new note at index 0;
 			
-                            notes_true[noteCount] = (struct Note){0}; 
-                            if (noteCount > 0)
-                            {
-                                RECT lastRect = notes_true[noteCount - 1].rect;
-                                notes_true[noteCount].rect.left = NOTE_MARGIN;
-                                notes_true[noteCount].rect.top = lastRect.bottom + NOTE_MARGIN;
-                                notes_true[noteCount].rect.right = NOTE_MARGIN + NOTE_WIDTH;
-                                notes_true[noteCount].rect.bottom = notes_true[noteCount].rect.top + NOTE_HEIGHT;
-                            }
-                            else
-                            {
-                                notes_true[noteCount].rect = (RECT){ NOTE_MARGIN, NOTE_MARGIN + 50, NOTE_MARGIN + NOTE_WIDTH, NOTE_MARGIN + 50 + NOTE_HEIGHT };
-                            }
+
+                            //artist
+                            memmove(notes_true + 1,notes_true, sizeof(struct Note) * noteCount);
+                            notes_true[0] = (struct Note){0}; 
+
+                           // if (noteCount > 0)
+                            //{
+                                //RECT lastRect = notes_true[noteCount - 1].rect;
+                                notes_true[0].rect.left = NOTE_MARGIN;
+                                notes_true[0].rect.top = 50 + NOTE_MARGIN;
+                                notes_true[0].rect.right = NOTE_MARGIN + NOTE_WIDTH;
+                                notes_true[0].rect.bottom = notes_true[0].rect.top + NOTE_HEIGHT;
+                            //}
+                           // else
+                            //{
+                                //notes_true[0].rect = (RECT){ NOTE_MARGIN, NOTE_MARGIN + 50, NOTE_MARGIN + NOTE_WIDTH, NOTE_MARGIN + 50 + NOTE_HEIGHT };
+                            //}
 
                             noteCount++;		
                             idIsPresent = 0;
                             noteUpdateId = 0;
+                            RecalculateNotePositions(hwnd);
                             InvalidateRect(hwnd, NULL, TRUE);
                             UpdateWindow(hwnd);
+                            
+
                         }
         }
         else if (ctrlId == ID_CLOSE_ALL_BUTTON) {
@@ -715,14 +747,15 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                 sqlite3_free(errmsg);
             }
             else {
+
                 sqlite3_int64 lastId = sqlite3_last_insert_rowid(db);
                 idIsPresent = 1;
                 noteUpdateId = lastId;
-                notes_true[noteCount - 1].id = (int)lastId;
-                strncpy_s(notes_true[noteCount - 1].title, sizeof(notes_true[noteCount - 1].title), "New Note", _TRUNCATE);
-                strncpy_s(notes_true[noteCount - 1].text, sizeof(notes_true[noteCount - 1].text), buffer, _TRUNCATE);
-                notes_true[noteCount - 1].textLen = length;
-                notes_true[noteCount - 1].rect = (RECT){ 0,0,0,0 };
+                notes_true[0].id = (int)lastId;
+                strncpy_s(notes_true[0].title, sizeof(notes_true[0].title), "New Note", _TRUNCATE);
+                strncpy_s(notes_true[0].text, sizeof(notes_true[0].text), buffer, _TRUNCATE);
+                notes_true[0].textLen = length;
+                notes_true[0].rect = (RECT){ 0,0,0,0 };
             }
         }
         RecalculateNotePositions(hwnd);
