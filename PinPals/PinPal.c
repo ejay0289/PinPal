@@ -276,7 +276,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			
             if (PtInRect(&rectXButton, ptActual))
             {
-                SendMessage(hwnd, WM_APP_NOTE_DELETED, (WPARAM)notes_true[i].id, (LPARAM)notes_true[i].id);
+                SendMessage(hwnd, WM_APP_NOTE_DELETED, 0, (LPARAM)notes_true[i].id);
                 break;
             }
             
@@ -631,12 +631,17 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	case WM_APP_NOTE_DELETED:
     {
-        
-        int noteId = (int)lParam;
-        int hEdit = (int)wParam;
 
-        if (!lParam) {
-            noteId = (int)GetWindowLongPtr(hEdit, NOTE_ID);
+        int noteId;
+
+        if (lParam) {
+            //lParam is note ID from main window
+            noteId = (int)lParam;
+        }
+        else {
+            //wParam is window handle from note
+            HWND hNoteWindow = (HWND)wParam;
+            noteId = (int)GetWindowLongPtr(hNoteWindow, NOTE_ID);
         }
  
 
