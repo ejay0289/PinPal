@@ -20,10 +20,14 @@
 #define ID_CLOSE_ALL_BUTTON 3006
 #define ID_SAVE_NOTE_BUTTON 3007
 #define ID_OPTIONS_BUTTON 3008
+#define ID_DELETE_NOTE_BUTTON 3009
 
 //Per note offsets for cbWndExtra
 #define NOTE_HANDLE 0
 #define NOTE_TOPMOST_STATE sizeof(LONG_PTR)
+#define NOTE_ID (sizeof(LONG_PTR) * 2)
+
+//cbWndExtra for Main Window
 #define NEW_NOTE_BUTTON_HANDLE sizeof(LONG_PTR)
 #define MAIN_WINDOW_SCROLL_STATE (sizeof(LONG_PTR) * 2)
 
@@ -84,6 +88,11 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         HWND showAllNotes = CreateWindowEx(
             0, "BUTTON", "Show all", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
             0, 100, 50, 50, hwnd, (HMENU)ID_SHOW_ALL_NOTES_BUTTON, GetModuleHandle(0), NULL
+        );
+
+        HWND deleteNote = CreateWindowEx(
+            0, "BUTTON","Del", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+            0, 150, 50, 50, hwnd, (HMENU)ID_DELETE_NOTE_BUTTON, GetModuleHandle(0), 0
         );
 
 
@@ -160,6 +169,11 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
                 else if (ctrlId == ID_SAVE_NOTE_BUTTON) {
                     SendMessage(hmainWindowHandle, WM_APP_SAVE, (WPARAM)hwnd, (LPARAM)hwnd);
+                }
+                else if (ctrlId == ID_DELETE_NOTE_BUTTON) {
+                    SendMessage(hmainWindowHandle, WM_APP_NOTE_DELETED, (WPARAM)hwnd, 0);
+                    DestroyWindow(hwnd);
+                    
                 }
 
                 break;
@@ -332,10 +346,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_CREATE:
     {
 
-
-
-
-        SetScrollRange(hwnd,SB_VERT, 0, 1000,1);
         RECT rec;
         GetClientRect(hwnd, &rec);
         int windowWidth = rec.right - rec.left;
@@ -604,6 +614,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             WS_OVERLAPPEDWINDOW | WS_VISIBLE,
             CW_USEDEFAULT, CW_USEDEFAULT, 400, 400,
             NULL, NULL, GetModuleHandle(NULL), NULL);
+        SetWindowLongPtr(editNote, NOTE_ID, (LONG_PTR)noteId);
+
         int hEdit = GetDlgItem(editNote, ID_TEXT);
         if (hEdit && noteValue) {
             SetWindowText(hEdit, noteValue);
@@ -619,7 +631,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	case WM_APP_NOTE_DELETED:
     {
+        
         int noteId = (int)lParam;
+        int hEdit = (int)wParam;
+
+        if (!lParam) {
+            noteId = (int)GetWindowLongPtr(hEdit, NOTE_ID);
+        }
+ 
 
         for (int i = 0; i < noteCount; i++) {
             if (notes_true[i].id == noteId) {
@@ -738,6 +757,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
         LPARAM noteHandle = (LPARAM)lParam;
         HWND hEdit = GetDlgItem(noteHandle, ID_TEXT);
+        
+
         int length = GetWindowTextLength(hEdit);
         if (length <= 0) break;
         char* buffer = malloc(length + 1);
@@ -763,6 +784,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                 sqlite3_int64 lastId = sqlite3_last_insert_rowid(db);
                 idIsPresent = 1;
                 noteUpdateId = lastId;
+                SetWindowLongPtr(hEdit, NOTE_ID, (LONG_PTR)lastId);
                 notes_true[0].id = (int)lastId;
                 strncpy_s(notes_true[0].title, sizeof(notes_true[0].title), "New Note", _TRUNCATE);
                 strncpy_s(notes_true[0].text, sizeof(notes_true[0].text), buffer, _TRUNCATE);
@@ -885,7 +907,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
     noteClass.lpszClassName = myNoteClass;
     noteClass.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_PINPALS));
     noteClass.hIconSm = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_PINPALS));
-    noteClass.cbWndExtra = sizeof(LONG_PTR) * 2;
+    noteClass.cbWndExtra = sizeof(LONG_PTR) * 3;
 
     if (!RegisterClassEx(&noteClass))
     {
@@ -1088,6 +1110,7 @@ void RecalculateNotePositions(HWND hwnd) {
     int windowWidth = rect.right - rect.left;
     int windowHeight = rect.bottom - rect.top;
 
+
     for (int i = 0; i < noteCount; i++)
     {
         notes_true[i].rect.left = NOTE_MARGIN;
@@ -1096,6 +1119,19 @@ void RecalculateNotePositions(HWND hwnd) {
         notes_true[i].rect.bottom = yOffset + NOTE_HEIGHT;
         yOffset += NOTE_HEIGHT + NOTE_MARGIN;
     }
+
+    struct ScrollState* pScrollState = (struct ScrollState*)GetWindowLongPtr(hwnd, MAIN_WINDOW_SCROLL_STATE);
+    if (pScrollState) {
+        pScrollState->contentHeight = noteCount * (NOTE_HEIGHT + NOTE_MARGIN) + 50;
+    }
+
+    SCROLLINFO si;
+    si.cbSize = sizeof(SCROLLINFO);
+    si.fMask = SIF_RANGE | SIF_PAGE;
+    si.nMin = 0;
+    si.nMax = pScrollState->contentHeight;
+    si.nPage = pScrollState->viewPortHeight;
+    SetScrollInfo(hwnd, SB_VERT, &si, TRUE);
 
     InvalidateRect(hwnd, NULL, TRUE);
 }
