@@ -21,11 +21,13 @@
 #define ID_SAVE_NOTE_BUTTON 3007
 #define ID_OPTIONS_BUTTON 3008
 #define ID_DELETE_NOTE_BUTTON 3009
+#define ID_NOTE_TITLE 3010
 
 //Per note offsets for cbWndExtra
-#define NOTE_HANDLE 0
+#define NOTE_EDIT_HANDLE 0
 #define NOTE_TOPMOST_STATE sizeof(LONG_PTR)
 #define NOTE_ID (sizeof(LONG_PTR) * 2)
+#define NOTE_TITLE_HANDLE (sizeof(LONG_PTR) * 2)
 
 //cbWndExtra for Main Window
 #define NEW_NOTE_BUTTON_HANDLE sizeof(LONG_PTR)
@@ -56,6 +58,7 @@ struct Note* notes_true = NULL;
 struct Note* notes_unsaved = NULL;
 HICON hPlusIcon;
 HICON hOptionIcon;
+HBRUSH hBrush = NULL;
 
 struct ScrollState {
     int scrollPosY; //current vertical scroll position
@@ -73,6 +76,7 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
     case WM_CREATE:
     {
+        hBrush = CreateSolidBrush(RGB(255, 255, 200));
 
         SetWindowLongPtr(hwnd, NOTE_TOPMOST_STATE, 0);
         HWND notePin = CreateWindowEx(
@@ -95,6 +99,12 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             0, 150, 50, 50, hwnd, (HMENU)ID_DELETE_NOTE_BUTTON, GetModuleHandle(0), 0
         );
 
+        HWND titleEdit = CreateWindowEx(
+            0, "EDIT", "",
+            WS_CHILD | WS_VISIBLE | ES_MULTILINE | ES_AUTOVSCROLL | WS_VSCROLL | ES_WANTRETURN,
+            0, 0, 100, 100, hwnd, (HMENU)ID_NOTE_TITLE, GetModuleHandle(NULL),
+            NULL
+        );
 
         HWND textArea = CreateWindowEx(
             0, "EDIT", "",
@@ -117,13 +127,21 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         );
 
         SendMessage(textArea, WM_SETFONT, (WPARAM)hFont, TRUE);
-        SetWindowLongPtr(hwnd, 0, (LONG_PTR)textArea);
+        //SendMessage(titleEdit, WM_SETFONT, (WPARAM)hFont, TRUE);
+        SetWindowLongPtr(hwnd, NOTE_EDIT_HANDLE, (LONG_PTR)textArea);
+        SetWindowLongPtr(hwnd, NOTE_TITLE_HANDLE, (LONG_PTR)titleEdit);
 
 
     }
         break;
 
-
+    case WM_CTLCOLOREDIT:
+    {
+        HDC hdc = (HDC)wParam;
+        SetBkColor(hdc, RGB(255, 255, 200));
+        return (LRESULT)hBrush;
+    }
+  
 
     case WM_COMMAND:
     {
@@ -131,6 +149,10 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         int notifCode = HIWORD(wParam);
 
         if (ctrlId == ID_TEXT && notifCode == EN_CHANGE) {
+            KillTimer(hwnd, 1);
+            SetTimer(hwnd, 1, 300, NULL);  // debounce 300ms
+        }
+        else if (ctrlId == ID_NOTE_TITLE && notifCode == EN_CHANGE) {
             KillTimer(hwnd, 1);
             SetTimer(hwnd, 1, 300, NULL);  // debounce 300ms
         }
@@ -192,8 +214,12 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_SIZE:
     {
         int width = LOWORD(lParam);
-        int height = HIWORD(lParam);
-        HWND textArea = (HWND)GetWindowLongPtr(hwnd, 0);
+        int wIndowHeight = HIWORD(lParam);
+
+        int titleEditHeight = 20;
+        int noteEditHeight = wIndowHeight - titleEditHeight;
+        HWND textArea = (HWND)GetWindowLongPtr(hwnd, NOTE_EDIT_HANDLE);
+        HWND titleEdit = (HWND)GetWindowLongPtr(hwnd, NOTE_TITLE_HANDLE);
         HWND pinButton = GetDlgItem(hwnd, ID_PIN_BUTTON);
         HWND showAllButton = GetDlgItem(hwnd, ID_SHOW_ALL_NOTES_BUTTON);
         HWND newNoteButton = GetDlgItem(hwnd, ID_NEW_NOTE_BUTTON);
@@ -207,7 +233,8 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         MoveWindow(showAllButton, 0, buttonHeight * 2, buttonWidth, buttonHeight, TRUE);
 
 //Fit text area on resize
-       MoveWindow(textArea, buttonWidth, 0, width - buttonWidth, height, TRUE);
+       MoveWindow(titleEdit, buttonWidth, 0, width - buttonWidth, titleEditHeight, TRUE);
+       MoveWindow(textArea, buttonWidth, titleEditHeight, width - buttonWidth, noteEditHeight, TRUE);
     }break;
 
     case WM_CLOSE:
@@ -219,6 +246,7 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		ShowWindow(hwnd,SW_HIDE);
         break;
     case WM_DESTROY:
+
         break;
     default:
         return DefWindowProc(hwnd, msg, wParam, lParam);
@@ -274,7 +302,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             rectXButton.right  = notes_true[i].rect.right;
             rectXButton.bottom = notes_true[i].rect.top + buttonSize;
 			
-            if (PtInRect(&rectXButton, ptActual))
+            if (PtInRect(&rectXButton, ptActual) && PtInRect(&notes_true[i].rect, ptActual))
             {
                 SendMessage(hwnd, WM_APP_NOTE_DELETED, 0, (LPARAM)notes_true[i].id);
                 break;
@@ -520,16 +548,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     case WM_PAINT:
     {
-
-        HWND hEdit = (HWND)lParam;
-        int length = GetWindowTextLength(hEdit);
-        //if (length <= 0) break;
-        char* buffer = malloc(length + 1);
-        GetWindowText(hEdit, buffer, length + 1);
-
-
-
-
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hwnd, &ps);
 
@@ -537,21 +555,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
        SetViewportOrgEx(hdc, 0, -yScrollPos, NULL);
 
         // Set brush color for notes
-        HBRUSH hBrush = CreateSolidBrush(RGB(255, 255, 0)); // yellow notes
+        hBrush = CreateSolidBrush(RGB(255, 255, 0)); // yellow notes
         HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, hBrush);
         SetBkMode(hdc, TRANSPARENT);
 
         int theY = NOTE_MARGIN +50;
-
-     /*   Rectangle(hdc, notes_true[0].rect.left, notes_true[0].rect.top, notes_true[0].rect.right, notes_true[0].rect.bottom);
-        RECT newNote = notes_true[0].rect;
-         DrawTextA(
-             hdc,
-             buffer,
-             -1,
-             &newNote,
-             DT_LEFT | DT_TOP | DT_WORDBREAK
-         );*/
 
     //Draw notes to main window
         for (int i = 0; i < noteCount; i++)
@@ -560,8 +568,27 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             RECT textRect = notes_true[i].rect;
             InflateRect(&textRect, -5, -5);
 
+
             // fetch content(text) from DB using each note's unique ID
-            char* content = getDatabaseEntry(notes_true[i].id);
+            char* title = getNoteTitle(notes_true[i].id);
+            char* content = getNoteContent(notes_true[i].id);
+
+            if (title) {
+                RECT titleRect = textRect;
+
+                // Reserve about 20 pixels (or use DrawText to calculate height)
+                titleRect.bottom = titleRect.top + 20;
+
+                SetTextColor(hdc, RGB(0, 0, 0)); // black title
+                SetBkMode(hdc, TRANSPARENT);
+
+                DrawTextA(hdc, title, -1, &titleRect,
+                    DT_LEFT | DT_TOP | DT_SINGLELINE | DT_END_ELLIPSIS);
+
+                // Move the main text rect below the title
+                textRect.top += 24; // title height + spacing
+            }
+
             if (content) {
                 DrawTextA(
                     hdc,
@@ -570,7 +597,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                     &textRect,
                     DT_LEFT | DT_TOP | DT_WORDBREAK
                 );
-                free(content);
+
             }
             else {
                 DrawTextA(
@@ -590,6 +617,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             rectXButton.bottom = notes_true[i].rect.top + buttonSize;
             DrawText(hdc, "X", -1, &rectXButton, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
+           if(content) free(content);
+           if (title) free(title);
         }
 
         // Cleanup
@@ -606,20 +635,25 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
 
         int noteId = (int)wParam;
-        char* noteValue = getDatabaseEntry(noteId);
-        HWND editNote = CreateWindowEx(
+        char* noteTitleValue = getNoteTitle(noteId);
+        char* noteValue = getNoteContent(noteId);
+        HWND noteWindow = CreateWindowEx(
             0,
             myNoteClass,
             windowTitle,
             WS_OVERLAPPEDWINDOW | WS_VISIBLE,
             CW_USEDEFAULT, CW_USEDEFAULT, 400, 400,
             NULL, NULL, GetModuleHandle(NULL), NULL);
-        SetWindowLongPtr(editNote, NOTE_ID, (LONG_PTR)noteId);
+        SetWindowLongPtr(noteWindow, NOTE_ID, (LONG_PTR)noteId);
 
-        int hEdit = GetDlgItem(editNote, ID_TEXT);
+        int hEdit = GetDlgItem(noteWindow, ID_TEXT);
+        int hNoteTitleEdit = GetDlgItem(noteWindow, ID_NOTE_TITLE);
+
         if (hEdit && noteValue) {
             SetWindowText(hEdit, noteValue);
-}
+            SetWindowText(hNoteTitleEdit, noteTitleValue);
+
+        }
                 
         idIsPresent = 1;
         noteUpdateId = noteId;
@@ -762,20 +796,27 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
         HWND noteHandle = (HWND)lParam;
         HWND hEdit = GetDlgItem(noteHandle, ID_TEXT);
-        
+        HWND hTitleEdit = GetDlgItem(noteHandle, ID_NOTE_TITLE);
 
-        int length = GetWindowTextLength(hEdit);
-        if (length <= 0) break;
-        char* buffer = malloc(length + 1);
-        GetWindowText(hEdit, buffer, length + 1);
+        int noteContentLength = GetWindowTextLength(hEdit);
+        int noteTitleLength = GetWindowTextLength(hTitleEdit);
+        if (noteContentLength <= 0) break;
+
+        char* noteContentBuffer = malloc(noteContentLength + 1);
+        GetWindowText(hEdit, noteContentBuffer, noteContentLength + 1);
+
+        char* noteTitleBuffer = malloc(noteTitleLength + 1);
+        GetWindowText(hTitleEdit, noteTitleBuffer, noteTitleLength + 1);
+
         char sql[512];
 
+
         if (idIsPresent) {
-            updateDatabaseEntry(noteUpdateId, buffer);
+            updateDatabaseEntry(noteUpdateId, noteContentBuffer,noteTitleBuffer);
         }
         else {
             snprintf(sql, sizeof(sql),
-                "INSERT INTO notes (title, content) VALUES ('New Note', '%s');", buffer);
+                "INSERT INTO notes (title, content) VALUES ('%s', '%s');",noteTitleBuffer, noteContentBuffer);
 
             char* errmsg = NULL;
             int rc = sqlite3_exec(db, sql, NULL, NULL, &errmsg);
@@ -791,16 +832,17 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                 noteUpdateId = lastId;
                 SetWindowLongPtr(noteHandle, NOTE_ID, (LONG_PTR)lastId);
                 notes_true[0].id = (int)lastId;
-                strncpy_s(notes_true[0].title, sizeof(notes_true[0].title), "New Note", _TRUNCATE);
-                strncpy_s(notes_true[0].text, sizeof(notes_true[0].text), buffer, _TRUNCATE);
-                notes_true[0].textLen = length;
+                strncpy_s(notes_true[0].title, sizeof(notes_true[0].title), noteTitleBuffer, _TRUNCATE);
+                strncpy_s(notes_true[0].text, sizeof(notes_true[0].text), noteContentBuffer, _TRUNCATE);
+                notes_true[0].textLen = noteContentLength;
                 notes_true[0].rect = (RECT){ 0,0,0,0 };
             }
         }
         RecalculateNotePositions(hwnd);
         InvalidateRect(hwnd, NULL, TRUE);
         UpdateWindow(hwnd);
-        free(buffer);
+        free(noteContentBuffer);
+        free(noteTitleBuffer); 
         //free(idIsPresent);
         //idIsPresent = NULL;
     }break;
@@ -808,6 +850,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_DESTROY:
     {
         // Only quit if no notes are left
+        DeleteObject(hBrush);
+
         struct ScrollState* pScrollState = (struct ScrollState*)GetWindowLongPtr(hwnd, sizeof(LONG_PTR) * 2);
         if (pScrollState) {
             free(pScrollState);
@@ -912,7 +956,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
     noteClass.lpszClassName = myNoteClass;
     noteClass.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_PINPALS));
     noteClass.hIconSm = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_PINPALS));
-    noteClass.cbWndExtra = sizeof(LONG_PTR) * 3;
+    noteClass.cbWndExtra = sizeof(LONG_PTR) * 4;
 
     if (!RegisterClassEx(&noteClass))
     {
@@ -1074,13 +1118,47 @@ void deleteNoteFromDatabase(int noteId) {
     sqlite3_finalize(stmt);
 }
 
-char* getDatabaseEntry(int noteId) {
+char* getNoteContent(int noteId) {
     if (!db) {
         MessageBox(NULL, "Database not open", "Error", MB_OK | MB_ICONERROR);
         return NULL;
     }
 
     const char* sql = "SELECT content FROM notes WHERE id = ?;";
+    sqlite3_stmt* stmt = NULL;
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        MessageBoxA(NULL, sqlite3_errmsg(db), "sqlite3_prepare_v2 failed", MB_OK | MB_ICONERROR);
+        return NULL;
+    }
+
+    sqlite3_bind_int(stmt, 1, noteId);
+
+    char* result = NULL;
+
+    rc = sqlite3_step(stmt);
+    if (rc == SQLITE_ROW) {
+        const unsigned char* text = sqlite3_column_text(stmt, 0);
+        if (text) {
+            result = _strdup((const char*)text);
+        }
+    }
+    else if (rc != SQLITE_DONE) {
+        MessageBoxA(NULL, sqlite3_errmsg(db), "sqlite3_step failed", MB_OK | MB_ICONERROR);
+    }
+
+    sqlite3_finalize(stmt);
+    return result; // caller must free
+}
+
+char* getNoteTitle(int noteId) {
+    if (!db) {
+        MessageBox(NULL, "Database not open", "Error", MB_OK | MB_ICONERROR);
+        return NULL;
+    }
+
+    const char* sql = "SELECT title FROM notes WHERE id = ?;";
     sqlite3_stmt* stmt = NULL;
 
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
@@ -1145,7 +1223,7 @@ void RecalculateNotePositions(HWND hwnd) {
 
 
 
-void updateDatabaseEntry(int noteId, const char* buffer) {
+void updateDatabaseEntry(int noteId, const char* noteContent,const char* noteTitle) {
     sqlite3_stmt* stmt;
     int rc;
     
@@ -1156,8 +1234,8 @@ void updateDatabaseEntry(int noteId, const char* buffer) {
         return;
     }
 
-    sqlite3_bind_text(stmt, 1, "Updated Note", -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(stmt, 2, buffer, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 1, noteTitle, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, noteContent, -1, SQLITE_TRANSIENT);
     sqlite3_bind_int(stmt, 3, noteId);
 
     rc = sqlite3_step(stmt);

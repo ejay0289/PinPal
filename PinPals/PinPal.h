@@ -19,8 +19,9 @@ struct Note {
 int getNoteCount(sqlite3* db);
 void deleteNoteFromDatabase(int noteId);
 int addToDatabase(struct Note* note);
-char* getDatabaseEntry(int noteId);
+char* getNoteContent(int noteId);
+char* getNoteTitle(int noteId);
 void RecalculateNotePositions(HWND hwnd);
 int OpenDatabase(void);
-void updateDatabaseEntry(int noteId, const char* buffer);
+void updateDatabaseEntry(int noteId, const char* noteContent, const char* noteTitle);
 
