@@ -35,6 +35,7 @@
 #define WM_APP_SAVE (WM_APP + 4)
 #define WM_APP_CALL_UPDATE_WINDOW (WM_APP + 5)
 
+
 //constants
 char windowClass[] = "myWindowClass";
 char myNoteClass[] = "myNoteclass";
@@ -58,9 +59,6 @@ struct ScrollState {
     int contentHeight; //visible height of scrollable content
     int viewPortHeight; //visible area height
 };
-
-
-
 
 
 LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -226,6 +224,20 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
     switch (msg)
     {
+
+    case WM_MOUSEWHEEL:
+    {
+        int delta = GET_WHEEL_DELTA_WPARAM(wParam);
+        WPARAM scrollCmd;
+
+        if (delta > 0)
+            scrollCmd = SB_LINEUP;
+        else
+            scrollCmd = SB_LINEDOWN;
+        SendMessage(hwnd, WM_VSCROLL, MAKEWPARAM(scrollCmd, 0), 0);
+        return 0;
+
+    }
 	case WM_LBUTTONDOWN:
 	{
 
