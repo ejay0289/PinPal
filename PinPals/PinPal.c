@@ -25,6 +25,9 @@
 #define NOTE_HANDLE 0
 #define NOTE_TOPMOST_STATE sizeof(LONG_PTR)
 #define NEW_NOTE_BUTTON_HANDLE sizeof(LONG_PTR)
+#define MAIN_WINDOW_SCROLL_STATE (sizeof(LONG_PTR) * 2)
+
+
 //custom messages
 #define WM_APP_NOTE_CLOSED (WM_APP + 1)
 #define WM_APP_NOTE_DELETED (WM_APP + 2)
@@ -49,7 +52,12 @@ struct Note* notes_unsaved = NULL;
 HICON hPlusIcon;
 HICON hOptionIcon;
 
-
+struct ScrollState {
+    int scrollPosY; //current vertical scroll position
+    int scrollPosX; //current horizontal scroll position
+    int contentHeight; //visible height of scrollable content
+    int viewPortHeight; //visible area height
+};
 
 
 
@@ -260,35 +268,45 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
         RECT rect;
         GetClientRect(hwnd, &rect);
-        SetScrollRange(hwnd, SB_VERT, 0, 100, TRUE);
-       int windowWidth = rect.right - rect.left;
-       int windowHeight = rect.bottom - rect.top;
-       int scrollbarWidth = GetSystemMetrics(SM_CXVSCROLL);
-       
-       if (noteCount > 0 && (windowWidth * 0.7) <800) {
-           for (int i = 0; i < noteCount; i++) {
-               notes_true[i].rect.right = windowWidth * 0.7;
-           }
+        struct ScrollState* pScrollState = (struct ScrollState*)GetWindowLongPtr(hwnd, sizeof(LONG_PTR) * 2);
+        pScrollState->viewPortHeight = rect.bottom;
+        //pScrollState->contentHeight = noteCount * (NOTE_MARGIN + NOTE_HEIGHT);
 
-       }
+        //set up vertical scroll
+        SCROLLINFO si;
+        si.nMax = pScrollState->contentHeight;
+        si.nPage = pScrollState->viewPortHeight;
+        SetScrollInfo(hwnd, SB_VERT, &si, TRUE);
 
-       int totalContentHeight = (noteCount > 8)
-           ? notes_true[noteCount - 1].rect.bottom + NOTE_MARGIN 
-           : 0;
+        int windowWidth = rect.right - rect.left;
+        int windowHeight = rect.bottom - rect.top;
+        int scrollbarWidth = GetSystemMetrics(SM_CXVSCROLL);
+
+        if (noteCount > 0 && (windowWidth * 0.7) < 800) {
+            for (int i = 0; i < noteCount; i++) {
+                notes_true[i].rect.right = windowWidth * 0.7;
+            }
+
+        }
+
+        int totalContentHeight = (noteCount > 8)
+            ? notes_true[noteCount - 1].rect.bottom + NOTE_MARGIN
+            : 0;
 
 
-       int maxScroll = max(0, totalContentHeight - windowHeight);
+        int maxScroll = max(0, totalContentHeight - windowHeight);
 
 
-       int topRightX = windowWidth - scrollbarWidth - 50; // top-right 
-       int topRightY = 0;                                  //
+        int topRightX = windowWidth - scrollbarWidth - 50; // top-right 
+        int topRightY = 0;                                  //
 
-       HWND newNoteButton = (HWND)GetWindowLongPtr(hwnd, NEW_NOTE_BUTTON_HANDLE);
-        MoveWindow(newNoteButton, topRightX -50, topRightY, 25, 25, TRUE);
+        HWND newNoteButton = (HWND)GetWindowLongPtr(hwnd, NEW_NOTE_BUTTON_HANDLE);
+        MoveWindow(newNoteButton, topRightX - 50, topRightY, 25, 25, TRUE);
         HWND closeAllButton = GetDlgItem(hwnd, ID_CLOSE_ALL_BUTTON);
         MoveWindow(closeAllButton, topRightX, topRightY, 50, 50, TRUE);
         InvalidateRect(hwnd, NULL, 1);
         UpdateWindow(hwnd);
+
     }break;
     //WndProc
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -327,53 +345,72 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         );
 
         SetWindowLongPtr(hwnd, NEW_NOTE_BUTTON_HANDLE, (LONG_PTR)newNoteButton);
+        
+        //initialising scroll state in main window extra byte
+        struct ScrollState* pScrollState = malloc(sizeof(struct ScrollState));
+        pScrollState->scrollPosY = 0;
+        pScrollState->scrollPosX = 0;
+        pScrollState->contentHeight = 0;
+        pScrollState->viewPortHeight = 0;
+        SetWindowLongPtr(hwnd, MAIN_WINDOW_SCROLL_STATE,(LONG_PTR)pScrollState);
+
         SendMessage(hwnd, WM_SIZE, 0, MAKELPARAM(windowWidth, rec.bottom - rec.top));
         RecalculateNotePositions(hwnd);
     }break;
 
     case WM_VSCROLL:
     {
-        int yPos = GetScrollPos(hwnd, SB_VERT);  // current position
-        int yOldPos = yPos;
+
+        SCROLLINFO si;
+        si.cbSize = sizeof(SCROLLINFO);
+        si.fMask = SIF_ALL;
+        GetScrollInfo(hwnd, SB_VERT, &si);
+
+        int yPos = si.nPos;  // current position
+      
 
         switch (LOWORD(wParam))
         {
         case SB_LINEUP:
-            yPos -= 20;
+            si.nPos -= 20;
             break;
 
         case SB_LINEDOWN:
-            yPos += 20;
+            si.nPos += 20;
             break;
 
         case SB_PAGEUP:
-            yPos -= 50;
+            si.nPos -= si.nPage;
             break;
 
         case SB_PAGEDOWN:
-            yPos += 50;
+            si.nPos += si.nPage;
             break;
 
         case SB_THUMBTRACK:
-            yPos = HIWORD(wParam);
+            si.nPos = si.nTrackPos;
             break;
 
         default:
             break;
         }
 
-        // Clamp scroll position
-        yPos = max(0, min(yPos, 100));
+       //set new position
+        si.fMask = SIF_POS;
+        SetScrollInfo(hwnd, SB_VERT, &si, TRUE);
+        GetScrollInfo(hwnd, SB_VERT, &si);
 
-        // Only scroll if the position changed
-        if (yPos != yOldPos)
-        {
-            SetScrollPos(hwnd, SB_VERT, yPos, TRUE);
+        //calculate how much was scrolled
+        int scrollDelta = yPos - si.nPos;
 
-            // Scroll window content
-            ScrollWindow(hwnd, 0, yOldPos - yPos, NULL, NULL);
-            UpdateWindow(hwnd);
-        }
+        //update stored scroll position
+        struct ScrollState* pScrollState = (struct ScrollState*)GetWindowLongPtr(hwnd, sizeof(LONG_PTR) * 2);
+        pScrollState->scrollPosY = si.nPos;
+
+        //scroll window content
+        ScrollWindow(hwnd,0, scrollDelta, NULL, NULL);
+        UpdateWindow(hwnd);
+        return 0;
     }
     break;
 
@@ -699,6 +736,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_DESTROY:
     {
         // Only quit if no notes are left
+        struct ScrollState* pScrollState = (struct ScrollState*)GetWindowLongPtr(hwnd, sizeof(LONG_PTR) * 2);
+        if (pScrollState) {
+            free(pScrollState);
+        }
         if(noteCount == 0)
             PostQuitMessage(0);
     }
@@ -773,7 +814,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
     wc.style = 0;
     wc.lpfnWndProc = WndProc;
     wc.cbClsExtra = 0;
-    wc.cbWndExtra = sizeof(LONG_PTR) *2;
+    wc.cbWndExtra = sizeof(LONG_PTR) *3;
     wc.hInstance = hInstance;
     wc.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_PINPALS));
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
