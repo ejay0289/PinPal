@@ -128,7 +128,6 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         );
 
         SendMessage(textArea, WM_SETFONT, (WPARAM)hFont, TRUE);
-        //SendMessage(titleEdit, WM_SETFONT, (WPARAM)hFont, TRUE);
         SetWindowLongPtr(hwnd, NOTE_EDIT_HANDLE, (LONG_PTR)textArea);
         SetWindowLongPtr(hwnd, NOTE_TITLE_HANDLE, (LONG_PTR)titleEdit);
 
@@ -786,34 +785,22 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                             break;
                         }
                         else {
-							//TODO:Shift all notes up an index and place new note at index 0;
-			
-
-                            //artist
-                            memmove(notes_true + 1,notes_true, sizeof(struct Note) * noteCount);
-                            notes_true[0] = (struct Note){0}; 
-
-                           // if (noteCount > 0)
-                            //{
-                                //RECT lastRect = notes_true[noteCount - 1].rect;
+                            //shift chunk up by one and free up position 0
+                                memmove(notes_true + 1,notes_true, sizeof(struct Note) * noteCount);
+                                notes_true[0] = (struct Note){0}; 
+                                
+                                
                                 notes_true[0].rect.left = NOTE_MARGIN;
                                 notes_true[0].rect.top = 50 + NOTE_MARGIN;
                                 notes_true[0].rect.right = NOTE_MARGIN + NOTE_WIDTH;
                                 notes_true[0].rect.bottom = notes_true[0].rect.top + NOTE_HEIGHT;
-                            //}
-                           // else
-                            //{
-                                //notes_true[0].rect = (RECT){ NOTE_MARGIN, NOTE_MARGIN + 50, NOTE_MARGIN + NOTE_WIDTH, NOTE_MARGIN + 50 + NOTE_HEIGHT };
-                            //}
-
-                            noteCount++;		
-                            idIsPresent = 0;
-                            noteUpdateId = 0;
-                            RecalculateNotePositions(hwnd);
-                            InvalidateRect(hwnd, NULL, TRUE);
-                            UpdateWindow(hwnd);
-                            
-
+                                
+                                noteCount++;		
+                                idIsPresent = 0;
+                                noteUpdateId = 0;
+                                RecalculateNotePositions(hwnd);
+                                InvalidateRect(hwnd, NULL, TRUE);
+                                UpdateWindow(hwnd);
                         }
         }
         else if (ctrlId == ID_CLOSE_ALL_BUTTON) {
