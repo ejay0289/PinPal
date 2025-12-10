@@ -6,12 +6,10 @@
 #include <stdint.h>
 
 #define MAX_NOTE_TEXT_LEN 1024
-#define NUMBER_OF_NOTE_COLORS 3
 
 
 struct Note {
     RECT rect;
-    RECT colorOptions[NUMBER_OF_NOTE_COLORS];
     char title[50];
     char text[MAX_NOTE_TEXT_LEN];
     int textLen;

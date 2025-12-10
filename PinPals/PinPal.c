@@ -9,6 +9,8 @@
 #include "PinPal.h"
 #include "dbg.h"
 
+
+
 #define CON 0
 //control constants
 #define ID_NEW_NOTE 2999
@@ -49,6 +51,9 @@ char windowTitle[] = "PinPals";
 #define NOTE_MARGIN 10
 #define NOTE_HEIGHT 100
 #define NOTE_WIDTH 200
+#define NUMBER_OF_NOTE_COLORS 3
+
+
 //Globals
 sqlite3 *db = NULL;
 HWND hmainWindowHandle;
@@ -58,7 +63,20 @@ struct Note* notes_true = NULL;
 struct Note* notes_unsaved = NULL;
 HICON hPlusIcon;
 HICON hOptionIcon;
-HBRUSH hBrush = NULL;
+
+RECT g_noteColorRects[NUMBER_OF_NOTE_COLORS];
+COLORREF noteColors[3] = {
+RGB(255, 0, 0),   // Red
+RGB(0, 255, 0),   // Green
+RGB(0, 0, 255)    // Blue
+};
+void InitNoteColorRect() {
+    int noteColorYPos = 200;
+    for (int i = 0; i < NUMBER_OF_NOTE_COLORS; i++) {
+        g_noteColorRects[i] = (RECT){ 0, noteColorYPos, 50, noteColorYPos + 50 };
+        noteColorYPos += 50;
+    }
+}
 
 struct ScrollState {
     int scrollPosY; //current vertical scroll position
@@ -130,6 +148,7 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         SendMessage(textArea, WM_SETFONT, (WPARAM)hFont, TRUE);
         SetWindowLongPtr(hwnd, NOTE_EDIT_HANDLE, (LONG_PTR)textArea);
         SetWindowLongPtr(hwnd, NOTE_TITLE_HANDLE, (LONG_PTR)titleEdit);
+        InitNoteColorRect();
 
 
     }break;
@@ -139,19 +158,9 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hwnd, &ps);
 
-        COLORREF noteColors[3] = {
-    RGB(255, 0, 0),   // Red
-    RGB(0, 255, 0),   // Green
-    RGB(0, 0, 255)    // Blue
-        };
-
         int rectYValue = 200;
-        POINT ptClick;
-        ptClick.x = GET_X_LPARAM(lParam);
-        ptClick.y = GET_Y_LPARAM(lParam);
 
-
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < NUMBER_OF_NOTE_COLORS; i++)
         {
             HBRUSH brush = CreateSolidBrush(noteColors[i]);
             HBRUSH old = SelectObject(hdc, brush);
@@ -162,27 +171,35 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             SelectObject(hdc, old);
             DeleteObject(brush);
 
-            if(PtInRect(&r, ptClick))
+
+        }
+        EndPaint(hwnd, &ps);
+    }break;
+
+    case WM_LBUTTONDOWN:
+    {
+        POINT ptClick;
+        ptClick.x = GET_X_LPARAM(lParam);
+        ptClick.y = GET_Y_LPARAM(lParam);
+
+        for (int i = 0; i < NUMBER_OF_NOTE_COLORS; i++) {
+
+            if (PtInRect(&g_noteColorRects[i], ptClick))
             {
                 int noteId = (int)GetWindowLongPtr(hwnd, NOTE_ID);
                 SendMessage(hmainWindowHandle, WM_APP_SAVE, (WPARAM)noteColors[i], (LPARAM)hwnd);
                 break;
             }
         }
+    }
 
-
-
-
-        EndPaint(hwnd, &ps);
-    }break;
-
-
+    /*
     case WM_CTLCOLOREDIT:
     {
         HDC hdc = (HDC)wParam;
         SetBkColor(hdc, RGB(245, 230, 66));
         return (LRESULT)hBrush;
-    }
+    }*/
   
 
     case WM_COMMAND:
@@ -597,8 +614,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
        SetViewportOrgEx(hdc, 0, -yScrollPos, NULL);
 
         // Set brush color for notes
-        hBrush = CreateSolidBrush(RGB(255, 255, 0)); // yellow notes
-        HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, hBrush);
+
+         // yellow notes
+
         SetBkMode(hdc, TRANSPARENT);
 
         int theY = NOTE_MARGIN +50;
@@ -606,14 +624,27 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     //Draw notes to main window
         for (int i = 0; i < noteCount; i++)
         {
+
+            COLORREF color = getNoteColor(notes_true[i].id) ? getNoteColor(notes_true[i].id) : RGB(255,255,0);
+            HBRUSH hBrush = CreateSolidBrush(color);
+            HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, hBrush);
+
+
             RoundRect(hdc, notes_true[i].rect.left, notes_true[i].rect.top, notes_true[i].rect.right, notes_true[i].rect.bottom,20,20);
+            
+
             RECT textRect = notes_true[i].rect;
             InflateRect(&textRect, -5, -5);
-
+            SelectObject(hdc, oldBrush);
+            DeleteObject(hBrush);
 
             // fetch content(text) from DB using each note's unique ID
+
             char* title = getNoteTitle(notes_true[i].id);
             char* content = getNoteContent(notes_true[i].id);
+
+
+            
 
             if (title) {
                 RECT titleRect = textRect;
@@ -661,11 +692,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
            if(content) free(content);
            if (title) free(title);
+          
         }
 
         // Cleanup
-        SelectObject(hdc, oldBrush);
-        DeleteObject(hBrush);
+
         EndPaint(hwnd, &ps);
         return 0;
     }
@@ -794,6 +825,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                                 notes_true[0].rect.top = 50 + NOTE_MARGIN;
                                 notes_true[0].rect.right = NOTE_MARGIN + NOTE_WIDTH;
                                 notes_true[0].rect.bottom = notes_true[0].rect.top + NOTE_HEIGHT;
+                                notes_true[0].noteColor = (uint32_t)noteColors[0];
                                 
                                 noteCount++;		
                                 idIsPresent = 0;
@@ -848,7 +880,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         }
         else {
             snprintf(sql, sizeof(sql),
-                "INSERT INTO notes (title, content,color) VALUES ('%s', '%s','%d');",noteTitleBuffer, noteContentBuffer,noteColor);
+                "INSERT INTO notes (title, content,color) VALUES ('%s', '%s',%u);",noteTitleBuffer, noteContentBuffer,noteColor);
 
             char* errmsg = NULL;
             int rc = sqlite3_exec(db, sql, NULL, NULL, &errmsg);
@@ -883,7 +915,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_DESTROY:
     {
         // Only quit if no notes are left
-        DeleteObject(hBrush);
+ 
 
         struct ScrollState* pScrollState = (struct ScrollState*)GetWindowLongPtr(hwnd, sizeof(LONG_PTR) * 2);
         if (pScrollState) {
@@ -944,7 +976,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
            }
            const unsigned char* title = sqlite3_column_text(stmt, 1);
            const unsigned char* content = sqlite3_column_text(stmt, 2);
-           const sqlite3_int64 color = (sqlite3_int64)sqlite3_column_int64(stmt, 3);
+           const uint32_t color = (uint32_t)sqlite3_column_int64(stmt, 3);
 
            notes_true[i].id = id;
            strncpy_s(notes_true[i].title, sizeof(notes_true[i].title), (const char*)title, _TRUNCATE);
@@ -1224,7 +1256,7 @@ char* getNoteTitle(int noteId) {
 uint32_t getNoteColor(int noteId) {
     if (!db) {
         MessageBox(NULL, "Database not open", "Error", MB_OK | MB_ICONERROR);
-        return NULL;
+        return 0;
     }
 
     const char* sql = "SELECT color FROM notes WHERE id = ?;";
@@ -1233,7 +1265,7 @@ uint32_t getNoteColor(int noteId) {
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
         MessageBoxA(NULL, sqlite3_errmsg(db), "sqlite3_prepare_v2 failed", MB_OK | MB_ICONERROR);
-        return NULL;
+        return 0;
     }
 
     sqlite3_bind_int(stmt, 1, noteId);
@@ -1242,7 +1274,8 @@ uint32_t getNoteColor(int noteId) {
 
     rc = sqlite3_step(stmt);
     if (rc == SQLITE_ROW) {
-        result = sqlite3_column_int64(stmt, 0);
+        result = (uint32_t)sqlite3_column_int64(stmt, 0);
+
     }
     else if (rc != SQLITE_DONE) {
         MessageBoxA(NULL, sqlite3_errmsg(db), "sqlite3_step failed", MB_OK | MB_ICONERROR);
