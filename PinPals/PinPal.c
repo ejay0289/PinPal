@@ -76,7 +76,8 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
     case WM_CREATE:
     {
-        hBrush = CreateSolidBrush(RGB(255, 255, 200));
+        //hBrush = CreateSolidBrush(RGB(25, 5, 250));
+        //hBrush = (HBRUSH)(COLOR_WINDOW + 2);
 
         SetWindowLongPtr(hwnd, NOTE_TOPMOST_STATE, 0);
         HWND notePin = CreateWindowEx(
@@ -132,13 +133,55 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         SetWindowLongPtr(hwnd, NOTE_TITLE_HANDLE, (LONG_PTR)titleEdit);
 
 
-    }
-        break;
+    }break;
+
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hwnd, &ps);
+
+        COLORREF noteColors[3] = {
+    RGB(255, 0, 0),   // Red
+    RGB(0, 255, 0),   // Green
+    RGB(0, 0, 255)    // Blue
+        };
+
+        int rectYValue = 200;
+        POINT ptClick;
+        ptClick.x = GET_X_LPARAM(lParam);
+        ptClick.y = GET_Y_LPARAM(lParam);
+
+
+        for (int i = 0; i < 3; i++)
+        {
+            HBRUSH brush = CreateSolidBrush(noteColors[i]);
+            HBRUSH old = SelectObject(hdc, brush);
+
+            RECT r = { 0, rectYValue, 50, rectYValue + 50 };   // 100×50 rect
+            Rectangle(hdc, r.left, r.top, r.right, r.bottom);
+            rectYValue += 50;
+            SelectObject(hdc, old);
+            DeleteObject(brush);
+
+            if(PtInRect(&r, ptClick))
+            {
+                int noteId = (int)GetWindowLongPtr(hwnd, NOTE_ID);
+                SendMessage(hmainWindowHandle, WM_APP_SAVE, (WPARAM)noteColors[i], (LPARAM)hwnd);
+                break;
+            }
+        }
+
+
+
+
+        EndPaint(hwnd, &ps);
+    }break;
+
 
     case WM_CTLCOLOREDIT:
     {
         HDC hdc = (HDC)wParam;
-        SetBkColor(hdc, RGB(255, 255, 200));
+        SetBkColor(hdc, RGB(245, 230, 66));
         return (LRESULT)hBrush;
     }
   
@@ -564,7 +607,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     //Draw notes to main window
         for (int i = 0; i < noteCount; i++)
         {
-            Rectangle(hdc, notes_true[i].rect.left, notes_true[i].rect.top, notes_true[i].rect.right, notes_true[i].rect.bottom);
+            RoundRect(hdc, notes_true[i].rect.left, notes_true[i].rect.top, notes_true[i].rect.right, notes_true[i].rect.bottom,20,20);
             RECT textRect = notes_true[i].rect;
             InflateRect(&textRect, -5, -5);
 
@@ -658,6 +701,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         idIsPresent = 1;
         noteUpdateId = noteId;
         free(noteValue);
+        free(noteTitleValue);
         noteValue = NULL;
 
     }break;
@@ -800,6 +844,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
         int noteContentLength = GetWindowTextLength(hEdit);
         int noteTitleLength = GetWindowTextLength(hTitleEdit);
+        uint32_t noteColor = (uint32_t)wParam;
         if (noteContentLength <= 0) break;
 
         char* noteContentBuffer = malloc(noteContentLength + 1);
@@ -812,11 +857,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 
         if (idIsPresent) {
-            updateDatabaseEntry(noteUpdateId, noteContentBuffer,noteTitleBuffer);
+            updateDatabaseEntry(noteUpdateId, noteContentBuffer,noteTitleBuffer,noteColor);
         }
         else {
             snprintf(sql, sizeof(sql),
-                "INSERT INTO notes (title, content) VALUES ('%s', '%s');",noteTitleBuffer, noteContentBuffer);
+                "INSERT INTO notes (title, content,color) VALUES ('%s', '%s','%d');",noteTitleBuffer, noteContentBuffer,noteColor);
 
             char* errmsg = NULL;
             int rc = sqlite3_exec(db, sql, NULL, NULL, &errmsg);
@@ -836,6 +881,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                 strncpy_s(notes_true[0].text, sizeof(notes_true[0].text), noteContentBuffer, _TRUNCATE);
                 notes_true[0].textLen = noteContentLength;
                 notes_true[0].rect = (RECT){ 0,0,0,0 };
+                notes_true[0].noteColor = noteColor;
             }
         }
         RecalculateNotePositions(hwnd);
@@ -896,7 +942,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
    RECT rect = { 10, 10, 210, 110 };
 
    sqlite3_stmt* stmt;
-   const char* sql = "SELECT id, title, content FROM notes ORDER BY id DESC;";
+   const char* sql = "SELECT id, title, content,color FROM notes ORDER BY id DESC;";
 
    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
        MessageBoxA(NULL, sqlite3_errmsg(db), "Failed to prepare select", MB_OK | MB_ICONERROR);
@@ -911,12 +957,14 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
            }
            const unsigned char* title = sqlite3_column_text(stmt, 1);
            const unsigned char* content = sqlite3_column_text(stmt, 2);
+           const sqlite3_int64 color = (sqlite3_int64)sqlite3_column_int64(stmt, 3);
 
            notes_true[i].id = id;
            strncpy_s(notes_true[i].title, sizeof(notes_true[i].title), (const char*)title, _TRUNCATE);
            strncpy_s(notes_true[i].text, sizeof(notes_true[i].text), (const char*)content, _TRUNCATE);
            notes_true[i].textLen = (int)strlen((const char*)content);
            notes_true[i].rect = rect;
+           notes_true[i].noteColor = color;
            i++;
        }
        sqlite3_finalize(stmt);
@@ -951,7 +999,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
     noteClass.lpfnWndProc = NoteWndProc;
     noteClass.cbClsExtra = 0;
     noteClass.cbWndExtra = 0;
-    noteClass.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+    noteClass.hbrBackground = CreateSolidBrush(RGB(245, 230, 66));
     noteClass.hInstance = hInstance;
     noteClass.lpszClassName = myNoteClass;
     noteClass.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_PINPALS));
@@ -1019,6 +1067,7 @@ int OpenDatabase(void) {
         "id INTEGER PRIMARY KEY AUTOINCREMENT,"
         "title TEXT,"
         "content TEXT,"
+        "color INTEGER,"
         "created_at DATETIME DEFAULT CURRENT_TIMESTAMP);";
 
     char* errmsg = NULL;
@@ -1040,10 +1089,9 @@ int addToDatabase(struct Note* note)
 {
     int rc;
     sqlite3_stmt* stmt;
-    char* errmsg = NULL;
 
     const char* insert_sql =
-        "INSERT INTO notes (title, content) VALUES (?, ?);";
+        "INSERT INTO notes (title, content, color) VALUES (?, ?, ?);";
 
     rc = sqlite3_prepare_v2(db, insert_sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
@@ -1051,8 +1099,9 @@ int addToDatabase(struct Note* note)
         return rc;
     }
 
-    sqlite3_bind_text(stmt, 1, "New note", -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 1, note->title, -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(stmt, 2, note->text, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int64(stmt, 3, (sqlite3_int64)note->noteColor);
 
     rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
@@ -1066,7 +1115,7 @@ int addToDatabase(struct Note* note)
     sqlite3_int64 last_id = sqlite3_last_insert_rowid(db);
 
     const char* select_sql =
-        "SELECT title, content FROM notes WHERE id = ?;";
+        "SELECT title, content, color FROM notes WHERE id = ?;";
 
     rc = sqlite3_prepare_v2(db, select_sql, -1, &stmt, NULL);
     if (rc == SQLITE_OK) {
@@ -1078,7 +1127,6 @@ int addToDatabase(struct Note* note)
 
             char message[512];
             snprintf(message, sizeof(message), "Title: %s\nContent: %s", title, content);
-            //MessageBoxA(NULL, message, "Note Added", MB_OK);
         }
         sqlite3_finalize(stmt);
     }
@@ -1186,6 +1234,37 @@ char* getNoteTitle(int noteId) {
     return result; // caller must free
 }
 
+uint32_t getNoteColor(int noteId) {
+    if (!db) {
+        MessageBox(NULL, "Database not open", "Error", MB_OK | MB_ICONERROR);
+        return NULL;
+    }
+
+    const char* sql = "SELECT color FROM notes WHERE id = ?;";
+    sqlite3_stmt* stmt = NULL;
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        MessageBoxA(NULL, sqlite3_errmsg(db), "sqlite3_prepare_v2 failed", MB_OK | MB_ICONERROR);
+        return NULL;
+    }
+
+    sqlite3_bind_int(stmt, 1, noteId);
+
+    uint32_t result = 0;
+
+    rc = sqlite3_step(stmt);
+    if (rc == SQLITE_ROW) {
+        result = sqlite3_column_int64(stmt, 0);
+    }
+    else if (rc != SQLITE_DONE) {
+        MessageBoxA(NULL, sqlite3_errmsg(db), "sqlite3_step failed", MB_OK | MB_ICONERROR);
+    }
+
+    sqlite3_finalize(stmt);
+    return result;
+}
+
 void RecalculateNotePositions(HWND hwnd) {
     int yOffset = NOTE_MARGIN + 50;
     RECT rect;
@@ -1223,11 +1302,11 @@ void RecalculateNotePositions(HWND hwnd) {
 
 
 
-void updateDatabaseEntry(int noteId, const char* noteContent,const char* noteTitle) {
+void updateDatabaseEntry(int noteId, const char* noteContent,const char* noteTitle,uint32_t noteColor) {
     sqlite3_stmt* stmt;
     int rc;
     
-    const char* sql = "UPDATE notes SET title = ?, content = ? WHERE id = ?;";
+    const char* sql = "UPDATE notes SET title = ?, content = ?, color = ? WHERE id = ?;";
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
         MessageBoxA(NULL, sqlite3_errmsg(db), "Failed to prepare update", MB_OK | MB_ICONERROR);
@@ -1236,7 +1315,10 @@ void updateDatabaseEntry(int noteId, const char* noteContent,const char* noteTit
 
     sqlite3_bind_text(stmt, 1, noteTitle, -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(stmt, 2, noteContent, -1, SQLITE_TRANSIENT);
-    sqlite3_bind_int(stmt, 3, noteId);
+    sqlite3_bind_int64(stmt, 3, (sqlite_int64)noteColor);
+    sqlite3_bind_int(stmt, 4, noteId);
+    
+
 
     rc = sqlite3_step(stmt);
     if (rc != SQLITE_DONE) {
