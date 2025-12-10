@@ -29,7 +29,8 @@
 #define NOTE_EDIT_HANDLE 0
 #define NOTE_TOPMOST_STATE sizeof(LONG_PTR)
 #define NOTE_ID (sizeof(LONG_PTR) * 2)
-#define NOTE_TITLE_HANDLE (sizeof(LONG_PTR) * 2)
+#define NOTE_TITLE_HANDLE (sizeof(LONG_PTR) * 3)
+#define NOTE_COLOR (sizeof(LONG_PTR) * 4)
 
 //cbWndExtra for Main Window
 #define NEW_NOTE_BUTTON_HANDLE sizeof(LONG_PTR)
@@ -94,10 +95,10 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
     case WM_CREATE:
     {
-        //hBrush = CreateSolidBrush(RGB(25, 5, 250));
         //hBrush = (HBRUSH)(COLOR_WINDOW + 2);
 
         SetWindowLongPtr(hwnd, NOTE_TOPMOST_STATE, 0);
+        SetWindowLongPtr(hwnd, NOTE_COLOR, (LONG_PTR)RGB(245, 230, 66));
         HWND notePin = CreateWindowEx(
             0,"BUTTON","PIN",WS_CHILD | WS_VISIBLE|BS_PUSHBUTTON,
             0,0,50,50,hwnd,(HMENU)ID_PIN_BUTTON,GetModuleHandle(0),NULL
@@ -176,6 +177,20 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         EndPaint(hwnd, &ps);
     }break;
 
+    case WM_ERASEBKGND:
+    {
+        COLORREF newBackgroundColor = GetWindowLongPtr(hwnd,NOTE_COLOR);
+        PAINTSTRUCT ps;
+        HDC hdc = (HDC)wParam;
+        RECT rc;
+        GetClientRect(hwnd, &rc);
+
+        HBRUSH hBrush = CreateSolidBrush(newBackgroundColor);
+        FillRect(hdc, &rc, hBrush);
+        DeleteObject(hBrush);
+        return 1; // background handled
+    }
+
     case WM_LBUTTONDOWN:
     {
         POINT ptClick;
@@ -186,20 +201,27 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
             if (PtInRect(&g_noteColorRects[i], ptClick))
             {
-                int noteId = (int)GetWindowLongPtr(hwnd, NOTE_ID);
+                SetWindowLongPtr(hwnd, NOTE_COLOR, (LONG_PTR)noteColors[i]);
                 SendMessage(hmainWindowHandle, WM_APP_SAVE, (WPARAM)noteColors[i], (LPARAM)hwnd);
+                SendMessage(hwnd, WM_ERASEBKGND, (WPARAM)noteColors[i], (LPARAM)hwnd);
+                SendMessage(hwnd, WM_CTLCOLOREDIT,0,0);
+                InvalidateRect(hwnd, NULL, 1);
+                UpdateWindow(hwnd);
                 break;
             }
         }
     }
 
-    /*
+    
     case WM_CTLCOLOREDIT:
     {
+        COLORREF storedColor = (COLORREF)GetWindowLongPtr(hwnd, NOTE_COLOR);
+        COLORREF newBackgroundColor = storedColor ? storedColor : RGB(245, 230, 66);
         HDC hdc = (HDC)wParam;
-        SetBkColor(hdc, RGB(245, 230, 66));
+        HBRUSH hBrush = CreateSolidBrush(newBackgroundColor);
+        SetBkColor(hdc, newBackgroundColor);
         return (LRESULT)hBrush;
-    }*/
+    }
   
 
     case WM_COMMAND:
@@ -265,7 +287,8 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_TIMER:
         if (wParam == 1) {
             KillTimer(hwnd, 1);
-            SendMessage(hmainWindowHandle, WM_APP_SAVE,(WPARAM)hwnd, (LPARAM)hwnd);
+            COLORREF noteColor = (COLORREF)GetWindowLongPtr(hwnd, NOTE_COLOR);
+            SendMessage(hmainWindowHandle, WM_APP_SAVE,noteColor, (LPARAM)hwnd);
             SendMessage(hmainWindowHandle, WM_PAINT, (WPARAM)hwnd, (LPARAM)hwnd);
         }
         break;
@@ -710,6 +733,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         int noteId = (int)wParam;
         char* noteTitleValue = getNoteTitle(noteId);
         char* noteValue = getNoteContent(noteId);
+        COLORREF noteColor = getNoteColor(noteId);
         HWND noteWindow = CreateWindowEx(
             0,
             myNoteClass,
@@ -718,6 +742,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             CW_USEDEFAULT, CW_USEDEFAULT, 400, 400,
             NULL, NULL, GetModuleHandle(NULL), NULL);
         SetWindowLongPtr(noteWindow, NOTE_ID, (LONG_PTR)noteId);
+        SetWindowLongPtr(noteWindow, NOTE_COLOR, (LONG_PTR)noteColor);
 
         int hEdit = GetDlgItem(noteWindow, ID_TEXT);
         int hNoteTitleEdit = GetDlgItem(noteWindow, ID_NOTE_TITLE);
@@ -864,7 +889,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         int noteContentLength = GetWindowTextLength(hEdit);
         int noteTitleLength = GetWindowTextLength(hTitleEdit);
         uint32_t noteColor = (uint32_t)wParam;
-        if (noteContentLength <= 0) break;
+        if (noteContentLength <= 0 && noteTitleLength <= 0 && noteColor <= 0) break;
 
         char* noteContentBuffer = malloc(noteContentLength + 1);
         GetWindowText(hEdit, noteContentBuffer, noteContentLength + 1);
@@ -1023,7 +1048,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
     noteClass.lpszClassName = myNoteClass;
     noteClass.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_PINPALS));
     noteClass.hIconSm = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_PINPALS));
-    noteClass.cbWndExtra = sizeof(LONG_PTR) * 4;
+    noteClass.cbWndExtra = sizeof(LONG_PTR) * 5;
 
     if (!RegisterClassEx(&noteClass))
     {
