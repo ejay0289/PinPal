@@ -67,10 +67,16 @@ HICON hOptionIcon;
 
 RECT g_noteColorRects[NUMBER_OF_NOTE_COLORS];
 COLORREF noteColors[3] = {
-RGB(255, 0, 0),   // Red
-RGB(0, 255, 0),   // Green
-RGB(0, 0, 255)    // Blue
+RGB(255, 210, 70),   //deep golden yellow 
+RGB(255, 200, 150),  // soft peach/orange   
+RGB(180, 245, 200) // pastel mint green
 };
+//Nice color to add
+// RGB(245, 230, 120)  //Light, buttery yelloww
+//  // 
+//RGB(240, 130, 120)  // soft coral
+//RGB(100, 200, 190)  // sophisticated minty-teal
+
 void InitNoteColorRect() {
     int noteColorYPos = 200;
     for (int i = 0; i < NUMBER_OF_NOTE_COLORS; i++) {
@@ -98,7 +104,7 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         //hBrush = (HBRUSH)(COLOR_WINDOW + 2);
 
         SetWindowLongPtr(hwnd, NOTE_TOPMOST_STATE, 0);
-        SetWindowLongPtr(hwnd, NOTE_COLOR, (LONG_PTR)RGB(245, 230, 66));
+        SetWindowLongPtr(hwnd, NOTE_COLOR, (LONG_PTR)noteColors[0]);
         HWND notePin = CreateWindowEx(
             0,"BUTTON","PIN",WS_CHILD | WS_VISIBLE|BS_PUSHBUTTON,
             0,0,50,50,hwnd,(HMENU)ID_PIN_BUTTON,GetModuleHandle(0),NULL
@@ -121,7 +127,7 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
         HWND titleEdit = CreateWindowEx(
             0, "EDIT", "",
-            WS_CHILD | WS_VISIBLE | ES_MULTILINE | ES_AUTOVSCROLL | WS_VSCROLL | ES_WANTRETURN,
+            WS_CHILD | WS_VISIBLE |ES_WANTRETURN,
             0, 0, 100, 100, hwnd, (HMENU)ID_NOTE_TITLE, GetModuleHandle(NULL),
             NULL
         );
@@ -216,7 +222,7 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_CTLCOLOREDIT:
     {
         COLORREF storedColor = (COLORREF)GetWindowLongPtr(hwnd, NOTE_COLOR);
-        COLORREF newBackgroundColor = storedColor ? storedColor : RGB(245, 230, 66);
+        COLORREF newBackgroundColor = storedColor ? storedColor : noteColors[0];
         HDC hdc = (HDC)wParam;
         HBRUSH hBrush = CreateSolidBrush(newBackgroundColor);
         SetBkColor(hdc, newBackgroundColor);
@@ -648,7 +654,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         for (int i = 0; i < noteCount; i++)
         {
 
-            COLORREF color = getNoteColor(notes_true[i].id) ? getNoteColor(notes_true[i].id) : RGB(255,255,0);
+            COLORREF color = getNoteColor(notes_true[i].id) ? getNoteColor(notes_true[i].id) : noteColors[0];
             HBRUSH hBrush = CreateSolidBrush(color);
             HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, hBrush);
 
@@ -665,9 +671,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
             char* title = getNoteTitle(notes_true[i].id);
             char* content = getNoteContent(notes_true[i].id);
-
-
-            
 
             if (title) {
                 RECT titleRect = textRect;
@@ -1013,6 +1016,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
        }
        sqlite3_finalize(stmt);
    }
+
    ////////////////////////////////////
  
     WNDCLASSEX wc;
@@ -1043,7 +1047,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
     noteClass.lpfnWndProc = NoteWndProc;
     noteClass.cbClsExtra = 0;
     noteClass.cbWndExtra = 0;
-    noteClass.hbrBackground = CreateSolidBrush(RGB(245, 230, 66));
+    noteClass.hbrBackground = CreateSolidBrush(noteColors[0]);
     noteClass.hInstance = hInstance;
     noteClass.lpszClassName = myNoteClass;
     noteClass.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_PINPALS));
@@ -1080,6 +1084,9 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
    
     return Msg.wParam;
 }
+
+
+
 
 //Function definitions
 ////////////////////////////////
@@ -1178,14 +1185,7 @@ int addToDatabase(struct Note* note)
         MessageBoxA(NULL, "Failed to prepare SELECT", "Error", MB_OK | MB_ICONERROR);
     }
     note->id = (int)last_id;
-    char buffer[64];
 
-    snprintf(
-        buffer,
-        sizeof(buffer),
-        "The value is: %d",
-        note->id
-    );
     return SQLITE_OK;
 }
 
