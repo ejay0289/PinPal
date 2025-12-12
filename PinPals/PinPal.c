@@ -204,7 +204,7 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             else if (isPressed) bg = bgPressed;
             else if (isHot) bg = bgHover;
 
-            // Create rounded brush
+            // Create rounded brush77
             HBRUSH brush = CreateSolidBrush(bg);
             HPEN pen = CreatePen(PS_SOLID, 1, bg);
 
