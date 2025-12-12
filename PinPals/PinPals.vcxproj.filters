@@ -49,6 +49,18 @@
     <Image Include="menu_icon.ico">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="icons\icon3.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="icons\bigmug.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="icons\neu.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="icons\zwicon.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="PinPal.c">
@@ -57,5 +69,10 @@
     <ClCompile Include="sqlite\sqlite3.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="bin1.bin">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

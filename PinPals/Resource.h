@@ -11,9 +11,15 @@
 #define IDM_ABOUT                       104
 #define IDM_EXIT                        105
 #define IDI_ICON1                       105
+#define IDR_BIN1                        106
 #define IDI_PINPALS                     107
 #define IDI_SMALL                       108
 #define IDC_PINPALS                     109
+#define IDI_ICON2                       109
+#define IDI_ICON3                       110
+#define IDI_DELETE1						111
+#define IDI_DELETE2						112
+#define IDI_DELETE3						113
 #define IDR_MAINFRAME                   128
 #define IDC_STATIC                      -1
 
@@ -21,7 +27,7 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        106
+#define _APS_NEXT_RESOURCE_VALUE        111
 #define _APS_NEXT_COMMAND_VALUE         40001
 #define _APS_NEXT_CONTROL_VALUE         1000
 #define _APS_NEXT_SYMED_VALUE           103

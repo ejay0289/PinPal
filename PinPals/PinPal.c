@@ -16,7 +16,9 @@
 #include "PinPal.h"
 #include "dbg.h"
 #pragma comment(lib, "Comctl32.lib")
-
+#pragma comment(linker,"\"/manifestdependency:type='win32' \
+name='Microsoft.Windows.Common-Controls' version='6.0.0.0' \
+processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 
 
 #define CON 0
@@ -61,7 +63,9 @@ wchar_t windowTitle[] = L"PinPals";
 #define NOTE_HEIGHT 100
 #define NOTE_WIDTH 200
 #define BUTTON_HEIGHT 50
-#define NUMBER_OF_NOTE_COLORS 3
+#define NUMBER_OF_NOTE_COLORS 6
+#define COLOR_HEIGHT 50
+#define COLOR_WIDTH 50
 
 
 //Globals
@@ -72,26 +76,38 @@ int scrollPos = 0;
 struct Note* notes_true = NULL;
 struct Note* notes_unsaved = NULL;
 HICON hPlusIcon;
+HICON hDeleteIcon;
 HICON hOptionIcon;
 
 RECT g_noteColorRects[NUMBER_OF_NOTE_COLORS];
-COLORREF noteColors[3] = {
-RGB(255, 210, 70),   //deep golden yellow 
+COLORREF noteColors[NUMBER_OF_NOTE_COLORS] = {
+    RGB(245, 230, 120),
+    RGB(255, 210, 70), 
+    RGB(100, 200, 190),//deep golden yellow 
 RGB(255, 200, 150),  // soft peach/orange   
-RGB(180, 245, 200) // pastel mint green
+RGB(180, 245, 200),
+RGB(240, 130, 120)// pastel mint green
 };
 //Nice color to add
-// RGB(245, 230, 120)  //Light, buttery yelloww
+//   //Light, buttery yelloww
 //  // 
-//RGB(240, 130, 120)  // soft coral
-//RGB(100, 200, 190)  // sophisticated minty-teal
+//  // soft coral
+//  // sophisticated minty-teal
 
-void InitNoteColorRect() {
-    int noteColorXPos = 200;
+void calculateColorRectPosition(HWND hwnd) {
+    RECT windowRect;
+    GetClientRect(hwnd, &windowRect);
+    
+    int windowHeight = windowRect.bottom - windowRect.top;
+    int windowWidth = windowRect.right - windowRect.left;
+
+    int totalColorPalleteWidth = NUMBER_OF_NOTE_COLORS * COLOR_WIDTH;
+    int halfwayWindowXValue = (windowWidth - totalColorPalleteWidth) / 2;
+
     for (int i = 0; i < NUMBER_OF_NOTE_COLORS; i++) {
 
-        g_noteColorRects[i] = (RECT){ noteColorXPos,0,noteColorXPos + 50,BUTTON_HEIGHT };
-        noteColorXPos += 50;
+        g_noteColorRects[i] = (RECT){ halfwayWindowXValue,windowHeight - COLOR_HEIGHT,halfwayWindowXValue + 50,windowHeight };
+        halfwayWindowXValue += 50;
 
     }
 
@@ -118,22 +134,22 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         SetWindowLongPtr(hwnd, NOTE_TOPMOST_STATE, 0);
         SetWindowLongPtr(hwnd, NOTE_COLOR, (LONG_PTR)noteColors[0]);
         HWND notePin = CreateWindowEx(
-            0,L"BUTTON",L"PIN",WS_CHILD | WS_VISIBLE| BS_OWNERDRAW,
+            0,L"BUTTON",L"Pin Note",WS_CHILD | WS_VISIBLE| BS_OWNERDRAW,
             0,0,50,50,hwnd,(HMENU)ID_PIN_BUTTON,GetModuleHandle(0),NULL
         );
 
 
         HWND newNoteButton = CreateWindowEx(
-            0, L"BUTTON", L"New", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+            0, L"BUTTON", L"New Note", WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
             50, 0, 50, 50, hwnd, (HMENU)ID_NEW_NOTE_BUTTON, GetModuleHandle(0), NULL
         );
         HWND showAllNotes = CreateWindowEx(
-            0, L"BUTTON", L"Show all", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+            0, L"BUTTON", L"Pin Board", WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
             100, 0, 50, 50, hwnd, (HMENU)ID_SHOW_ALL_NOTES_BUTTON, GetModuleHandle(0), NULL
         );
 
         HWND deleteNote = CreateWindowEx(
-            0, L"BUTTON", L"Del", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+            0, L"BUTTON", L"Del", WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
             150, 0, 50, 50, hwnd, (HMENU)ID_DELETE_NOTE_BUTTON, GetModuleHandle(0), 0
         );
 
@@ -143,9 +159,9 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             50, 0, 300, 20, hwnd, (HMENU)ID_NOTE_TITLE, GetModuleHandle(NULL),
             NULL
         );
-        
-        //Placeholder text needs the project to use unicode
-        SendMessage(titleEdit, EM_SETCUEBANNER, FALSE, (LPARAM)L"Enter your text here...");
+        //SetWindowText(titleEdit, L"Title");
+        SendMessage(titleEdit, EM_SETCUEBANNER, FALSE, (LPARAM)L"Title");
+
 
 
         HWND textArea = CreateWindowEx(
@@ -154,9 +170,15 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             0, 0, 100, 100, hwnd, (HMENU)ID_TEXT, GetModuleHandle(NULL),
             NULL
         );
+        //SetWindowText(textArea, L"Content...");
+        //SendMessage(textArea, EM_SETCUEBANNER, FALSE, (LPARAM)L"Your pin here.");
+       // Edit_SetCueBannerTextFocused(textArea, L"Your pin here...", TRUE);
 
-        HFONT hFont = CreateFont(
-            -18,                // Height 
+
+
+
+        HFONT titleFont = CreateFont(
+            -24,                // Height 
             0, 0, 0,            // Width, escapement, orientation
             FW_NORMAL,          // Weight
             FALSE, FALSE, FALSE,// Italic, underline, strikeout
@@ -168,10 +190,26 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             L"Segoe UI"          // Font faceres
         );
 
-        SendMessage(textArea, WM_SETFONT, (WPARAM)hFont, TRUE);
+        HFONT noteEditFont = CreateFont(
+            -18,                // Height 
+            0, 0, 0,            // Width, escapement, orientation
+            FW_NORMAL,          // Weight
+            FALSE, FALSE, FALSE,// Italic, underline, strikeout
+            DEFAULT_CHARSET,
+            OUT_DEFAULT_PRECIS,
+            CLIP_DEFAULT_PRECIS,
+            DEFAULT_QUALITY,
+            DEFAULT_PITCH | FF_DONTCARE,
+            L"Calibri"          // Font faceres
+        );
+
+
+
+        SendMessage(textArea, WM_SETFONT, (WPARAM)noteEditFont, TRUE);
+        SendMessage(titleEdit, WM_SETFONT, (WPARAM)titleFont, TRUE);
         SetWindowLongPtr(hwnd, NOTE_EDIT_HANDLE, (LONG_PTR)textArea);
         SetWindowLongPtr(hwnd, NOTE_TITLE_HANDLE, (LONG_PTR)titleEdit);
-        InitNoteColorRect();
+        calculateColorRectPosition(hwnd);
 
 
     }break;
@@ -179,6 +217,144 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_DRAWITEM:
     {
         LPDRAWITEMSTRUCT dis = (LPDRAWITEMSTRUCT)lParam;
+
+        if (dis->CtlID == ID_DELETE_NOTE_BUTTON)
+        {
+            // Fill background
+            FillRect(dis->hDC, &dis->rcItem, (HBRUSH)(COLOR_WINDOW + 1));
+
+            // Highlight when pressed
+            if (dis->itemState & ODS_SELECTED)
+            {
+                FillRect(dis->hDC, &dis->rcItem, CreateSolidBrush(RGB(220, 220, 220)));
+            }
+
+            // Compute icon placement
+            int iconSize = 20;  // your .ico is 256x256
+            int btnWidth = dis->rcItem.right - dis->rcItem.left;
+            int btnHeight = dis->rcItem.bottom - dis->rcItem.top;
+
+            // If the button is smaller than 256x256, scale down proportionally
+            if (iconSize > btnWidth || iconSize > btnHeight)
+                iconSize = min(btnWidth, btnHeight);
+
+            // Center the icon
+            int iconX = dis->rcItem.left + (btnWidth - iconSize) / 2;
+            int iconY = dis->rcItem.top + (btnHeight - iconSize) / 2;
+
+            // Draw it in full resolution (or scaled if smaller)
+            DrawIconEx(dis->hDC, iconX, iconY, hDeleteIcon, iconSize, iconSize, 0, NULL, DI_NORMAL);
+
+            return TRUE;
+        }
+
+        if (dis->CtlID == ID_SHOW_ALL_NOTES_BUTTON)
+        {
+            HDC hdc = dis->hDC;
+            RECT rc = dis->rcItem;
+
+            // Paint parent background first
+            HDC parentDC = GetDC(GetParent(dis->hwndItem));
+            int w = rc.right - rc.left;
+            int h = rc.bottom - rc.top;
+
+            BitBlt(hdc, 0, 0, w, h, parentDC, rc.left, rc.top, SRCCOPY);
+
+            ReleaseDC(GetParent(dis->hwndItem), parentDC);
+
+            // Colors
+            COLORREF normalColor = RGB(230, 230, 230);
+            COLORREF hoverColor = RGB(210, 210, 210);
+            COLORREF clickColor = RGB(180, 180, 180);
+            COLORREF textColor = RGB(30, 30, 30);
+
+            COLORREF bg = normalColor;
+
+            if (dis->itemState & ODS_SELECTED)
+                bg = clickColor;
+            else if (dis->itemState & ODS_HOTLIGHT)
+                bg = hoverColor;
+
+            // Create brush
+            HBRUSH brush = CreateSolidBrush(bg);
+
+            // Draw rounded button
+            HPEN pen = CreatePen(PS_SOLID, 1, RGB(180, 180, 180));
+            HPEN oldPen = SelectObject(hdc, pen);
+            HBRUSH oldBrush = SelectObject(hdc, brush);
+
+            RoundRect(hdc, rc.left, rc.top, rc.right, rc.bottom, 18, 18);
+
+            SelectObject(hdc, oldPen);
+            SelectObject(hdc, oldBrush);
+            DeleteObject(brush);
+            DeleteObject(pen);
+
+            // Draw text
+            SetBkMode(hdc, TRANSPARENT);
+            SetTextColor(hdc, textColor);
+
+            wchar_t text[64];
+            GetWindowText(dis->hwndItem, text, 64);
+
+            DrawText(hdc, text, -1, &rc, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+
+            return TRUE;
+        }
+
+        if (dis->CtlID == ID_NEW_NOTE_BUTTON)
+        {
+            HDC hdc = dis->hDC;
+            RECT rc = dis->rcItem;
+
+            // Paint parent background first
+            HDC parentDC = GetDC(GetParent(dis->hwndItem));
+            int w = rc.right - rc.left;
+            int h = rc.bottom - rc.top;
+
+            BitBlt(hdc, 0, 0, w, h, parentDC, rc.left, rc.top, SRCCOPY);
+
+            ReleaseDC(GetParent(dis->hwndItem), parentDC);
+
+            // Colors
+            COLORREF normalColor = RGB(230, 230, 230);
+            COLORREF hoverColor = RGB(210, 210, 210);
+            COLORREF clickColor = RGB(180, 180, 180);
+            COLORREF textColor = RGB(30, 30, 30);
+
+            COLORREF bg = normalColor;
+
+            if (dis->itemState & ODS_SELECTED)
+                bg = clickColor;
+            else if (dis->itemState & ODS_HOTLIGHT)
+                bg = hoverColor;
+
+            // Create brush
+            HBRUSH brush = CreateSolidBrush(bg);
+
+            // Draw rounded button
+            HPEN pen = CreatePen(PS_SOLID, 1, RGB(180, 180, 180));
+            HPEN oldPen = SelectObject(hdc, pen);
+            HBRUSH oldBrush = SelectObject(hdc, brush);
+
+            RoundRect(hdc, rc.left, rc.top, rc.right, rc.bottom, 18, 18);
+
+            SelectObject(hdc, oldPen);
+            SelectObject(hdc, oldBrush);
+            DeleteObject(brush);
+            DeleteObject(pen);
+
+            // Draw text
+            SetBkMode(hdc, TRANSPARENT);
+            SetTextColor(hdc, textColor);
+
+            wchar_t text[64];
+            GetWindowText(dis->hwndItem, text, 64);
+
+            DrawText(hdc, text, -1, &rc, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+
+            return TRUE;
+        }
 
         if (dis->CtlID == ID_PIN_BUTTON)
         {
@@ -193,9 +369,12 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             BOOL isHot = (dis->itemState & ODS_HOTLIGHT);
 
             // Colors
-            COLORREF bgNormal = RGB(52, 120, 255);  // blue
-            COLORREF bgHover = RGB(62, 140, 255);
-            COLORREF bgPressed = RGB(42, 90, 220);
+           int isPinned = (int)GetWindowLongPtr(hwnd, NOTE_TOPMOST_STATE);
+
+        // Choose colors based on pinned state
+            COLORREF bgNormal = isPinned ? RGB(100, 200, 100) : RGB(230, 230, 230);  // Green if pinned
+            COLORREF bgHover = isPinned ? RGB(80, 180, 80) : RGB(210, 210, 210);
+            COLORREF bgPressed = isPinned ? RGB(60, 160, 60) : RGB(180, 180, 180);
             COLORREF bgDisabled = RGB(180, 180, 180);
 
             COLORREF bg = bgNormal;
@@ -206,17 +385,17 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
             // Create rounded brush77
             HBRUSH brush = CreateSolidBrush(bg);
-            HPEN pen = CreatePen(PS_SOLID, 1, bg);
+            HPEN pen = CreatePen(PS_SOLID, 1, RGB(180,180,180));
+            HPEN oldPen = SelectObject(hdc, pen);
 
             HBRUSH oldBrush = SelectObject(hdc, brush);
-            HPEN oldPen = SelectObject(hdc, pen);
 
             // Draw rounded rectangle
             RoundRect(hdc, rc.left, rc.top, 100, 20, 20, 20);
 
             // Draw text
             SetBkMode(hdc, TRANSPARENT);
-            SetTextColor(hdc, RGB(255, 255, 255));
+            SetTextColor(hdc, RGB(30,30,30));
 
             wchar_t text[256];
             GetWindowText(dis->hwndItem, text, 256);
@@ -239,16 +418,26 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hwnd, &ps);
 
-        int rectXValue = 200;
+        RECT windowRect;
+        GetClientRect(hwnd, &windowRect);
+
+        int windowHeight = windowRect.bottom - windowRect.top;
+        int windowWidth = windowRect.right - windowRect.left;
+
+        int totalColorPalleteWidth = NUMBER_OF_NOTE_COLORS * COLOR_WIDTH;
+        int halfwayWindowXValue = (windowWidth - totalColorPalleteWidth) / 2;
+
+        int colorYValue = windowHeight - 50;
 
         for (int i = 0; i < NUMBER_OF_NOTE_COLORS; i++)
         {
             HBRUSH brush = CreateSolidBrush(noteColors[i]);
             HBRUSH old = SelectObject(hdc, brush);
 
-            RECT r = { rectXValue, 0, rectXValue + 50, BUTTON_HEIGHT };
+            RECT r = { halfwayWindowXValue, colorYValue, halfwayWindowXValue + 50, windowHeight };
+            
             Rectangle(hdc, r.left, r.top, r.right, r.bottom);
-            rectXValue += 50;
+            halfwayWindowXValue += 50;
             SelectObject(hdc, old);
             DeleteObject(brush);
 
@@ -294,7 +483,31 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
     
     case WM_CTLCOLOREDIT:
+    {    HWND hEdit = (HWND)lParam;
+    
+
+    // Check if it's the text area and if it's empty
+    if (hEdit == GetDlgItem(hwnd, ID_TEXT))
     {
+        int len = GetWindowTextLength(hEdit);
+        if (len == 0)
+        {
+            HDC hdc = (HDC)wParam;
+            
+            // Draw placeholder text
+            SetTextColor(hdc, RGB(150, 150, 150)); // Gray color
+            SetBkMode(hdc, TRANSPARENT);
+            
+            RECT rc;
+            GetClientRect(hEdit, &rc);
+            rc.left += 2; // Small padding
+            rc.top += 2;
+            
+            DrawText(hdc, L"Your pin here...", -1, &rc, 
+                     DT_LEFT | DT_TOP | DT_NOPREFIX);
+        }
+       }
+
         COLORREF storedColor = (COLORREF)GetWindowLongPtr(hwnd, NOTE_COLOR);
         COLORREF newBackgroundColor = storedColor ? storedColor : noteColors[0];
         HDC hdc = (HDC)wParam;
@@ -338,7 +551,13 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                     }
                 }
                 else if (ctrlId == ID_SHOW_ALL_NOTES_BUTTON) {
+                    if (IsIconic(hmainWindowHandle)) {
+                        ShowWindow(hmainWindowHandle, SW_RESTORE);
+                    }
                     ShowWindow(hmainWindowHandle, SW_SHOW);
+                    BringWindowToTop(hmainWindowHandle);
+                    SetForegroundWindow(hmainWindowHandle);
+
 
                 }
 
@@ -376,23 +595,25 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_SIZE:
     {
         int windowWidth = LOWORD(lParam);
-        int wIndowHeight = HIWORD(lParam);
+        int windowHeight = HIWORD(lParam);
 
-        int titleEditHeight = 20;
-        int noteEditHeight = wIndowHeight - titleEditHeight;
+
         HWND textArea = (HWND)GetWindowLongPtr(hwnd, NOTE_EDIT_HANDLE);
         HWND titleEdit = (HWND)GetWindowLongPtr(hwnd, NOTE_TITLE_HANDLE);
         HWND pinButton = GetDlgItem(hwnd, ID_PIN_BUTTON);
         HWND showAllButton = GetDlgItem(hwnd, ID_SHOW_ALL_NOTES_BUTTON);
         HWND newNoteButton = GetDlgItem(hwnd, ID_NEW_NOTE_BUTTON);
+        HWND deleteNoteButton = GetDlgItem(hwnd, ID_DELETE_NOTE_BUTTON);
 
-        int buttonWidth = 50;
-        int buttonHeight = 50;
-
+        int buttonWidth = 100;
+        int buttonHeight = 20;
+        int titleEditHeight = 35;
+        int noteEditHeight = windowHeight - titleEditHeight - buttonHeight - COLOR_HEIGHT;
 
         MoveWindow(pinButton, 0, 0, buttonWidth, buttonHeight, TRUE);
         MoveWindow(newNoteButton, buttonWidth,0, buttonWidth, buttonHeight, TRUE);
         MoveWindow(showAllButton, buttonWidth * 2, 0, buttonWidth, buttonHeight, TRUE);
+        MoveWindow(deleteNoteButton, windowWidth - 20, 0, 20, 20, TRUE);
 
 //Fit text area on resize
        MoveWindow(titleEdit, 0, buttonHeight, windowWidth, titleEditHeight, TRUE);
@@ -400,6 +621,7 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
        InvalidateRect(hwnd, 0, 1);
        UpdateWindow(hwnd);
+       calculateColorRectPosition(hwnd);
 
     }break;
 
@@ -823,11 +1045,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             0,
             myNoteClass,
             windowTitle,
-            WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+            WS_OVERLAPPEDWINDOW,
             CW_USEDEFAULT, CW_USEDEFAULT, 400, 400,
             NULL, NULL, GetModuleHandle(NULL), NULL);
         SetWindowLongPtr(noteWindow, NOTE_ID, (LONG_PTR)noteId);
         SetWindowLongPtr(noteWindow, NOTE_COLOR, (LONG_PTR)noteColor);
+        ShowWindow(noteWindow, SW_SHOW);
+
 
         int hEdit = GetDlgItem(noteWindow, ID_TEXT);
         int hNoteTitleEdit = GetDlgItem(noteWindow, ID_NOTE_TITLE);
@@ -1080,6 +1304,14 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
     hOptionIcon = (HICON)LoadImage(
         hInstance,
         MAKEINTRESOURCE(IDI_ICON1),
+        IMAGE_ICON,
+        256, 256,
+        LR_CREATEDIBSECTION | LR_DEFAULTCOLOR
+    );
+
+    hDeleteIcon = (HICON)LoadImage(
+        hInstance,
+        MAKEINTRESOURCE(IDI_DELETE1),
         IMAGE_ICON,
         256, 256,
         LR_CREATEDIBSECTION | LR_DEFAULTCOLOR

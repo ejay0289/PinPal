@@ -133,6 +133,10 @@
   <ItemGroup>
     <Image Include="icon1.ico" />
     <Image Include="icon2.ico" />
+    <Image Include="icons\bigmug.ico" />
+    <Image Include="icons\icon3.ico" />
+    <Image Include="icons\neu.ico" />
+    <Image Include="icons\zwicon.ico" />
     <Image Include="menu_icon.ico" />
     <Image Include="PinPals.ico" />
     <Image Include="plus_icon.ico" />
@@ -141,6 +145,9 @@
   <ItemGroup>
     <ClCompile Include="PinPal.c" />
     <ClCompile Include="sqlite\sqlite3.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="bin1.bin" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
