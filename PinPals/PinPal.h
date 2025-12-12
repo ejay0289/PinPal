@@ -1,17 +1,18 @@
 #pragma once
-
+#define UNICODE
+#define _UNICODE
 #include <windows.h>
 #include "Resource.h"
 #include "sqlite3.h"
 #include <stdint.h>
 
-#define MAX_NOTE_TEXT_LEN 1024
+#define MAX_NOTE_TEXT_LEN 2056
 
 
 struct Note {
     RECT rect;
-    char title[50];
-    char text[MAX_NOTE_TEXT_LEN];
+    wchar_t title[50];
+    wchar_t text[MAX_NOTE_TEXT_LEN];
     int textLen;
     int id;
     uint32_t noteColor;
@@ -25,5 +26,6 @@ char* getNoteContent(int noteId);
 char* getNoteTitle(int noteId);
 void RecalculateNotePositions(HWND hwnd);
 int OpenDatabase(void);
-void updateDatabaseEntry(int noteId, const char* noteContent, const char* noteTitle,uint32_t noteColor);
+void updateDatabaseEntry(int noteId, const wchar_t* noteContent, const wchar_t* noteTitle,uint32_t noteColor);
+wchar_t* Utf8ToWide(const char* utf8);
 
