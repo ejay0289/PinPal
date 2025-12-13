@@ -41,6 +41,7 @@ processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 #define NOTE_ID (sizeof(LONG_PTR) * 2)
 #define NOTE_TITLE_HANDLE (sizeof(LONG_PTR) * 3)
 #define NOTE_COLOR (sizeof(LONG_PTR) * 4)
+#define NOTE_TEMP_ID (sizeof(LONG_PTR) * 5)
 
 //cbWndExtra for Main Window
 #define NEW_NOTE_BUTTON_HANDLE sizeof(LONG_PTR)
@@ -80,6 +81,7 @@ HICON hDeleteMainWindowIcon;
 HICON hOptionIcon;
 HICON hPinIcon;
 HFONT hMainWindowContentFont;
+int tmpId;
 
 
 RECT g_noteColorRects[NUMBER_OF_NOTE_COLORS];
@@ -180,6 +182,7 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         SendMessage(titleEdit, WM_SETFONT, (WPARAM)titleFont, TRUE);
         SetWindowLongPtr(hwnd, NOTE_EDIT_HANDLE, (LONG_PTR)textArea);
         SetWindowLongPtr(hwnd, NOTE_TITLE_HANDLE, (LONG_PTR)titleEdit);
+        SetWindowLongPtr(hwnd, NOTE_TEMP_ID, (LONG_PTR)tmpId);
         calculateColorRectPosition(hwnd);
 
 
@@ -546,6 +549,8 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         if (wParam == 1) {
             KillTimer(hwnd, 1);
             COLORREF noteColor = (COLORREF)GetWindowLongPtr(hwnd, NOTE_COLOR);
+            
+
             SendMessage(hmainWindowHandle, WM_APP_SAVE,noteColor, (LPARAM)hwnd);
             SendMessage(hmainWindowHandle, WM_PAINT, (WPARAM)hwnd, (LPARAM)hwnd);
         }
@@ -650,7 +655,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			
             if (PtInRect(&rectXButton, ptActual) && PtInRect(&notes_true[i].rect, ptActual))
             {
-                SendMessage(hwnd, WM_APP_NOTE_DELETED, 0, (LPARAM)notes_true[i].id);
+                SendMessage(hwnd, WM_APP_NOTE_DELETED, (WPARAM)notes_true[i].tmpId, (LPARAM)notes_true[i].id);
                 break;
             }
             
@@ -1038,6 +1043,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
 
         int noteId;
+        int tempId;
 
         if (lParam) {
             //lParam is note ID from main window
@@ -1048,12 +1054,28 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             HWND hNoteWindow = (HWND)wParam;
             noteId = (int)GetWindowLongPtr(hNoteWindow, NOTE_ID);
         }
+
+            //lParam is note ID from main window
+            tempId = (int)wParam;
+        
+            for (int j = 0; j < noteCount; j++) {
+
+            }
  
 
+
+
         for (int i = 0; i < noteCount; i++) {
+
+            if (notes_true[i].tmpId > tempId) {
+                notes_true[i].tmpId -= 1;
+            }
+
             if (notes_true[i].id == noteId) {
 
+
                 deleteNoteFromDatabase(noteId);
+
                 for (int j = i; j < noteCount - 1; j++) {
                     notes_true[j] = notes_true[j + 1];
                 }
@@ -1094,18 +1116,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             GetWindowRect(hwnd, &rect);
             int windowWidth = rect.right - rect.left;
             int windowHeight = rect.bottom - rect.top;
-                    HWND note = CreateWindowEx(
-                        0,
-                        myNoteClass,
-                        windowTitle,
-                        WS_OVERLAPPEDWINDOW | WS_VISIBLE,
-                        CW_USEDEFAULT, CW_USEDEFAULT, 400, 400,
-                        NULL, NULL, GetModuleHandle(NULL), NULL);
 
-                    if (note == NULL) {
-                        MessageBox(hwnd, L"Note creation failed", L"Error!", MB_OK | MB_ICONERROR);
-                        break;
-                    }
                         
                         notes_true = realloc(notes_true, sizeof(struct Note) * (noteCount + 1));
                         if (notes_true == NULL) {
@@ -1114,6 +1125,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                         }
                         else {
                             //shift chunk up by one and free up position 0
+                            
                                 memmove(notes_true + 1,notes_true, sizeof(struct Note) * noteCount);
                                 notes_true[0] = (struct Note){0}; 
                                 
@@ -1123,15 +1135,33 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                                 notes_true[0].rect.right = NOTE_MARGIN + NOTE_WIDTH;
                                 notes_true[0].rect.bottom = notes_true[0].rect.top + NOTE_HEIGHT;
                                 notes_true[0].noteColor = (uint32_t)noteColors[0];
+                                notes_true[0].tmpId = noteCount;
+                                tmpId = noteCount;
                                 
                                 noteCount++;		
                                 idIsPresent = 0;
                                 noteUpdateId = 0;
+
+                                HWND note = CreateWindowEx(
+                                    0,
+                                    myNoteClass,
+                                    windowTitle,
+                                    WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+                                    CW_USEDEFAULT, CW_USEDEFAULT, 400, 400,
+                                    NULL, NULL, GetModuleHandle(NULL), NULL);
+
+                                if (note == NULL) {
+                                    MessageBox(hwnd, L"Note creation failed", L"Error!", MB_OK | MB_ICONERROR);
+                                    break;
+                                }
+
                                 RecalculateNotePositions(hwnd);
                                 InvalidateRect(hwnd, NULL, TRUE);
                                 UpdateWindow(hwnd);
                         }
         }
+
+
         else if (ctrlId == ID_CLOSE_ALL_BUTTON) {
             free(notes_true);
             sqlite3_close(db);
@@ -1155,12 +1185,15 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_APP_SAVE:
     {
         HWND noteHandle = (HWND)lParam;
+        uint32_t noteColor = (uint32_t)wParam;
+
         HWND hEdit = GetDlgItem(noteHandle, ID_TEXT);
         HWND hTitleEdit = GetDlgItem(noteHandle, ID_NOTE_TITLE);
 
         int noteContentLength = GetWindowTextLength(hEdit);
         int noteTitleLength = GetWindowTextLength(hTitleEdit);
-        uint32_t noteColor = (uint32_t)wParam;
+
+        int tempId = (int)GetWindowLongPtr(noteHandle,NOTE_TEMP_ID);
 
         if (noteContentLength <= 0 && noteTitleLength <= 0 && noteColor <= 0) break;
 
@@ -1184,8 +1217,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
         char sql[512];
 
-
-        if (idIsPresent) {
+        int idCheck = (int)GetWindowLongPtr(noteHandle, NOTE_ID);
+        if (idIsPresent && noteUpdateId == idCheck) {
             updateDatabaseEntry(noteUpdateId,utf8Content, utf8Title,noteColor);
         }
         else {
@@ -1205,15 +1238,26 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                 idIsPresent = 1;
                 noteUpdateId = lastId;
                 SetWindowLongPtr(noteHandle, NOTE_ID, (LONG_PTR)lastId);
-                notes_true[0].id = (int)lastId;
 
-                //copy wide tring
-                wcsncpy_s(notes_true[0].title, sizeof(notes_true[0].title) / sizeof(wchar_t), noteTitleBuffer, _TRUNCATE);
-                wcsncpy_s(notes_true[0].text, sizeof(notes_true[0].text) / sizeof(wchar_t), noteContentBuffer, _TRUNCATE);
-                
-                notes_true[0].textLen = noteContentLength;
-                notes_true[0].rect = (RECT){ 0,0,0,0 };
-                notes_true[0].noteColor = noteColor;
+                int noteIndex = -1;
+                for (int i = 0; i < noteCount; i++) {
+                    if (notes_true[i].tmpId == tempId) {
+                        noteIndex = i;
+                        break;
+                    }
+                }
+
+                if (noteIndex != -1) {
+                    notes_true[noteIndex].id = (int)lastId;
+
+                    //copy wide string
+                    wcsncpy_s(notes_true[noteIndex].title, sizeof(notes_true[noteIndex].title) / sizeof(wchar_t), noteTitleBuffer, _TRUNCATE);
+                    wcsncpy_s(notes_true[noteIndex].text, sizeof(notes_true[noteIndex].text) / sizeof(wchar_t), noteContentBuffer, _TRUNCATE);
+
+                    notes_true[noteIndex].textLen = noteContentLength;
+                    notes_true[noteIndex].noteColor = noteColor;
+                }
+
             }
         }
         RecalculateNotePositions(hwnd);
@@ -1392,7 +1436,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
     noteClass.lpszClassName = myNoteClass;
     noteClass.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_PINPALS));
     noteClass.hIconSm = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_PINPALS));
-    noteClass.cbWndExtra = sizeof(LONG_PTR) * 5;
+    noteClass.cbWndExtra = sizeof(LONG_PTR) * 6;
 
     if (!RegisterClassEx(&noteClass))
     {

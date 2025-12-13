@@ -15,6 +15,7 @@ struct Note {
     wchar_t text[MAX_NOTE_TEXT_LEN];
     int textLen;
     int id;
+    int tmpId;
     uint32_t noteColor;
 };
 
