@@ -2,7 +2,7 @@
 // Microsoft Visual C++ generated include file.
 // Used by PinPals.rc
 //
-#define IDC_MYICON                      2
+#define IDI_PINPALS                     20
 #define IDI_PLUS_ICON                   101
 #define IDD_PINPALS_DIALOG              102
 #define IDI_OPTIONS_ICON                102
@@ -12,11 +12,9 @@
 #define IDM_EXIT                        105
 #define IDI_ICON1                       105
 #define IDR_BIN1                        106
-#define IDI_PINPALS                     107
 #define IDI_SMALL                       108
 #define IDC_PINPALS                     109
-#define IDI_ICON2                       109
-#define IDI_ICON3                       110
+
 #define IDI_DELETE_ICON						111
 #define IDI_DELETE_MAIN_WINDOW			112
 #define IDI_PIN_ICON					113

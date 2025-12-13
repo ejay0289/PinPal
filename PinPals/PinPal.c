@@ -1295,6 +1295,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
         LR_DEFAULTCOLOR | LR_SHARED
     );
 
+
+
    OpenDatabase();
    noteCount = getNoteCount(db);
    notes_true = malloc(sizeof(struct Note) * noteCount) ;
@@ -1367,7 +1369,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
     wc.cbWndExtra = sizeof(LONG_PTR) *3;
     wc.hInstance = hInstance;
     wc.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_PINPALS));
-    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+        wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
     wc.lpszMenuName = NULL;
     wc.lpszClassName = windowClass;
