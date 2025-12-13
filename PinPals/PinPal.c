@@ -58,7 +58,7 @@ processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 //constants
 const wchar_t windowClass[] = L"myWindowClass";
 const wchar_t myNoteClass[] = L"myNoteclass";
-const wchar_t windowTitle[] = L"PinPals";
+const wchar_t windowTitle[] = L"PinPal";
 #define NOTE_MARGIN 25
 #define NOTE_HEIGHT 100
 #define NOTE_WIDTH 200
@@ -836,7 +836,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
         if (lpDraw->CtlID == ID_NEW_NOTE)
         {
-            FillRect(lpDraw->hDC, &lpDraw->rcItem, (HBRUSH)(COLOR_WINDOW + 2));
+            FillRect(lpDraw->hDC, &lpDraw->rcItem, (HBRUSH)(COLOR_WINDOW + 1));
 
             if (lpDraw->itemState & ODS_SELECTED)
             {
