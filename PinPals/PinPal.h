@@ -16,6 +16,7 @@ struct Note {
     int textLen;
     int id;
     int tmpId;
+    HWND noteHandle;
     uint32_t noteColor;
 };
 

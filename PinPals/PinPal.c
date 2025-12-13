@@ -81,7 +81,9 @@ HICON hDeleteMainWindowIcon;
 HICON hOptionIcon;
 HICON hPinIcon;
 HFONT hMainWindowContentFont;
-int tmpId;
+int tempInMemoryId = 0;
+
+
 
 
 RECT g_noteColorRects[NUMBER_OF_NOTE_COLORS];
@@ -182,7 +184,7 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         SendMessage(titleEdit, WM_SETFONT, (WPARAM)titleFont, TRUE);
         SetWindowLongPtr(hwnd, NOTE_EDIT_HANDLE, (LONG_PTR)textArea);
         SetWindowLongPtr(hwnd, NOTE_TITLE_HANDLE, (LONG_PTR)titleEdit);
-        SetWindowLongPtr(hwnd, NOTE_TEMP_ID, (LONG_PTR)tmpId);
+        SetWindowLongPtr(hwnd, NOTE_TEMP_ID, (LONG_PTR)tempInMemoryId);
         calculateColorRectPosition(hwnd);
 
 
@@ -535,7 +537,9 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                     SendMessage(hmainWindowHandle, WM_APP_SAVE, (WPARAM)hwnd, (LPARAM)hwnd);
                 }
                 else if (ctrlId == ID_DELETE_NOTE_BUTTON) {
-                    SendMessage(hmainWindowHandle, WM_APP_NOTE_DELETED, (WPARAM)hwnd, 0);
+                    int tmpId = (int)GetWindowLongPtr(hwnd, NOTE_TEMP_ID);
+                    int noteId = (int)GetWindowLongPtr(hwnd, NOTE_ID);
+                    SendMessage(hmainWindowHandle, WM_APP_NOTE_DELETED, (WPARAM)tmpId, (LPARAM)noteId);
                     DestroyWindow(hwnd);
                     
                 }
@@ -552,7 +556,7 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             
 
             SendMessage(hmainWindowHandle, WM_APP_SAVE,noteColor, (LPARAM)hwnd);
-            SendMessage(hmainWindowHandle, WM_PAINT, (WPARAM)hwnd, (LPARAM)hwnd);
+            //SendMessage(hmainWindowHandle, WM_PAINT, (WPARAM)hwnd, (LPARAM)hwnd);
         }
         break;
 
@@ -611,10 +615,6 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-    //For tracking note updates
-    static int idIsPresent = 0;
-    static int noteUpdateId = 0;
-
 
     switch (msg)
     {
@@ -655,7 +655,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			
             if (PtInRect(&rectXButton, ptActual) && PtInRect(&notes_true[i].rect, ptActual))
             {
-                SendMessage(hwnd, WM_APP_NOTE_DELETED, (WPARAM)notes_true[i].tmpId, (LPARAM)notes_true[i].id);
+                //pointer = (int)GetWindowLongPtr(hwnd, NOTE_TEMP_ID);
+                int deleteId = notes_true[i].tmpId;
+                SendMessage(hwnd, WM_APP_NOTE_DELETED, (WPARAM)deleteId, (LPARAM)notes_true[i].id);
                 break;
             }
             
@@ -1028,8 +1030,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
         }
                 
-        idIsPresent = 1;
-        noteUpdateId = noteId;
         free(utf8NoteTitleValue);
         free(utf8NoteValue);
         free(noteValue);
@@ -1039,65 +1039,50 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     }break;
 	
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	case WM_APP_NOTE_DELETED:
+    case WM_APP_NOTE_DELETED:
     {
-
-        int noteId;
-        int tempId;
-
-        if (lParam) {
-            //lParam is note ID from main window
-            noteId = (int)lParam;
-        }
-        else {
-            //wParam is window handle from note
-            HWND hNoteWindow = (HWND)wParam;
-            noteId = (int)GetWindowLongPtr(hNoteWindow, NOTE_ID);
-        }
-
-            //lParam is note ID from main window
-            tempId = (int)wParam;
-        
-            for (int j = 0; j < noteCount; j++) {
-
-            }
- 
-
-
+        int deletedTmpId = (int)wParam; //tmpId
+        int deletedNoteId = (int)lParam;//noteId
+        HWND noteToClose = NULL;
+        int deletedIndex = -1;
 
         for (int i = 0; i < noteCount; i++) {
-
-            if (notes_true[i].tmpId > tempId) {
-                notes_true[i].tmpId -= 1;
+            if (deletedNoteId > 0 && notes_true[i].id == deletedNoteId) {
+                deletedIndex = i;
+                deleteNoteFromDatabase(deletedNoteId);
+                noteToClose = notes_true[i].noteHandle;
+                break;
             }
-
-            if (notes_true[i].id == noteId) {
-
-
-                deleteNoteFromDatabase(noteId);
-
-                for (int j = i; j < noteCount - 1; j++) {
-                    notes_true[j] = notes_true[j + 1];
-                }
-                noteCount--;
-
-                if (noteCount > 0) {
-                    struct Note* pTempNotes = realloc(notes_true, noteCount * sizeof(struct Note));
-                    if (pTempNotes != NULL) notes_true = pTempNotes;
-                    
-                }
-                else {
-                    free(notes_true);
-                    notes_true = NULL;
-
-                }
-                RecalculateNotePositions(hwnd);
-                InvalidateRect(hwnd, NULL, TRUE);
+            else if (deletedNoteId == 0 && notes_true[i].id == 0 && notes_true[i].tmpId == deletedTmpId) {
+                deletedIndex = i;
+                noteToClose = notes_true[i].noteHandle;
                 break;
             }
         }
-    }
-    break;
+
+        if (deletedIndex != -1) {
+            if (noteToClose) {
+                DestroyWindow(noteToClose);
+            }
+
+            for (int j = deletedIndex; j < noteCount - 1; j++) {
+                notes_true[j] = notes_true[j + 1];
+            }
+            noteCount--;
+
+            if (noteCount > 0) {
+                struct Note* pTempNotes = realloc(notes_true, noteCount * sizeof(struct Note));
+                if (pTempNotes != NULL) notes_true = pTempNotes;
+            }
+            else {
+                free(notes_true);
+                notes_true = NULL;
+            }
+
+            RecalculateNotePositions(hwnd);
+            InvalidateRect(hwnd, NULL, TRUE);
+        }
+    } break;
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     case WM_COMMAND:
@@ -1135,13 +1120,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                                 notes_true[0].rect.right = NOTE_MARGIN + NOTE_WIDTH;
                                 notes_true[0].rect.bottom = notes_true[0].rect.top + NOTE_HEIGHT;
                                 notes_true[0].noteColor = (uint32_t)noteColors[0];
+                                
+
                                 notes_true[0].tmpId = noteCount;
-                                tmpId = noteCount;
+                                
+                                tempInMemoryId = noteCount;
                                 
                                 noteCount++;		
-                                idIsPresent = 0;
-                                noteUpdateId = 0;
-
+         
                                 HWND note = CreateWindowEx(
                                     0,
                                     myNoteClass,
@@ -1154,6 +1140,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                                     MessageBox(hwnd, L"Note creation failed", L"Error!", MB_OK | MB_ICONERROR);
                                     break;
                                 }
+
+                                notes_true[0].noteHandle = note;
 
                                 RecalculateNotePositions(hwnd);
                                 InvalidateRect(hwnd, NULL, TRUE);
@@ -1193,9 +1181,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         int noteContentLength = GetWindowTextLength(hEdit);
         int noteTitleLength = GetWindowTextLength(hTitleEdit);
 
-        int tempId = (int)GetWindowLongPtr(noteHandle,NOTE_TEMP_ID);
 
         if (noteContentLength <= 0 && noteTitleLength <= 0 && noteColor <= 0) break;
+
+
 
         // --- Allocate wide buffers ---
         wchar_t* noteContentBuffer = malloc((noteContentLength + 1) * sizeof(wchar_t));
@@ -1217,9 +1206,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
         char sql[512];
 
+        int tempId = (int)GetWindowLongPtr(noteHandle, NOTE_TEMP_ID);
         int idCheck = (int)GetWindowLongPtr(noteHandle, NOTE_ID);
-        if (idIsPresent && noteUpdateId == idCheck) {
-            updateDatabaseEntry(noteUpdateId,utf8Content, utf8Title,noteColor);
+
+        if (idCheck  != 0) {
+            updateDatabaseEntry(idCheck,utf8Content, utf8Title,noteColor);
         }
         else {
             snprintf(sql, sizeof(sql),
@@ -1235,8 +1226,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             else {
 
                 sqlite3_int64 lastId = sqlite3_last_insert_rowid(db);
-                idIsPresent = 1;
-                noteUpdateId = lastId;
                 SetWindowLongPtr(noteHandle, NOTE_ID, (LONG_PTR)lastId);
 
                 int noteIndex = -1;
