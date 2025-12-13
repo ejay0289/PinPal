@@ -79,6 +79,8 @@ HICON hDeleteIcon;
 HICON hDeleteMainWindowIcon;
 HICON hOptionIcon;
 HICON hPinIcon;
+HFONT hMainWindowContentFont;
+
 
 RECT g_noteColorRects[NUMBER_OF_NOTE_COLORS];
 COLORREF noteColors[NUMBER_OF_NOTE_COLORS] = {
@@ -744,6 +746,18 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             topRightX, 0, 100, 50, hwnd, (HMENU)ID_CLOSE_ALL_BUTTON, GetModuleHandle(0), NULL
         );
 
+        hMainWindowContentFont = CreateFont(
+            -17,                // Height 
+            0, 0, 0,            // Width, escapement, orientation
+            FW_NORMAL,          // Weight
+            FALSE, FALSE, FALSE,// Italic, underline, strikeout
+            DEFAULT_CHARSET,
+            OUT_DEFAULT_PRECIS,
+            CLIP_DEFAULT_PRECIS,
+            DEFAULT_QUALITY,
+            DEFAULT_PITCH | FF_DONTCARE,
+            L"Segoe UI"          // Font faceres
+        );
         SetWindowLongPtr(hwnd, NEW_NOTE_BUTTON_HANDLE, (LONG_PTR)newNoteButton);
         
         //initialising scroll state in main window extra byte
@@ -888,6 +902,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         int yScrollPos = GetScrollPos(hwnd, SB_VERT);
        SetViewportOrgEx(hdc, 0, -yScrollPos, NULL);
 
+       HFONT oldFont = (HFONT)SelectObject(hdc, hMainWindowContentFont);
+
+
         SetBkMode(hdc, TRANSPARENT);
 
         int theY = NOTE_MARGIN +50;
@@ -924,6 +941,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                 DrawTextA(hdc, title, -1, &titleRect,
                     DT_LEFT | DT_TOP | DT_SINGLELINE | DT_END_ELLIPSIS);
 
+                SelectObject(hdc, hMainWindowContentFont);
+
+
                 textRect.top += 24; // title height + spacing
             }
 
@@ -946,6 +966,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                     DT_LEFT | DT_TOP | DT_WORDBREAK
                 );
             }
+
+
   
 			RECT rectXButton;
             int buttonSize = 24;
@@ -1213,6 +1235,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         if(noteCount == 0)
             PostQuitMessage(0);
     }
+
+
+    DeleteObject(hMainWindowContentFont);
         break;
     default:
         return DefWindowProc(hwnd, msg, wParam, lParam);

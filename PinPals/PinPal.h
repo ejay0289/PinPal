@@ -27,6 +27,6 @@ char* getNoteTitle(int noteId);
 void RecalculateNotePositions(HWND hwnd);
 void calculateColorRectPosition(HWND hwnd);
 int OpenDatabase(void);
-void updateDatabaseEntry(int noteId, const wchar_t* noteContent, const wchar_t* noteTitle,uint32_t noteColor);
+void updateDatabaseEntry(int noteId, const char* noteContent, const char* noteTitle, uint32_t noteColor);
 wchar_t* Utf8ToWide(const char* utf8);
 
