@@ -17,9 +17,10 @@
 #define IDC_PINPALS                     109
 #define IDI_ICON2                       109
 #define IDI_ICON3                       110
-#define IDI_DELETE1						111
-#define IDI_DELETE2						112
-#define IDI_DELETE3						113
+#define IDI_DELETE_ICON						111
+#define IDI_DELETE_MAIN_WINDOW			112
+#define IDI_PIN_ICON					113
+
 #define IDR_MAINFRAME                   128
 #define IDC_STATIC                      -1
 
