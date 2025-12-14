@@ -3,7 +3,7 @@
 #define _UNICODE
 #include <windows.h>
 #include "Resource.h"
-#include "sqlite3.h"
+#include "./SQLite/sqlite3.h"
 #include <stdint.h>
 
 #define MAX_NOTE_TEXT_LEN 2056

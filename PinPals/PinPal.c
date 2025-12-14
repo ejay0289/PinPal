@@ -9,7 +9,8 @@
 #include <windowsx.h>
 #include "Resource.h"
 #include <string.h>
-#include "sqlite3.h"
+
+#include "./SQLite/sqlite3.h"
 #include <stdio.h>
 #include <commctrl.h>
 
@@ -987,8 +988,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                 buttonSize, buttonSize,
                 0, NULL, DI_NORMAL);
 
-           if(content) free(content);
-           if (title) free(title);
+            if (content) {
+                free(content);
+                content = NULL;
+            } 
+            if (title) {
+               free(title);
+               title = NULL;
+           }
           
         }
 
@@ -1031,11 +1038,16 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         }
                 
         free(utf8NoteTitleValue);
-        free(utf8NoteValue);
-        free(noteValue);
-        free(noteTitleValue);
-        noteValue = NULL;
+        utf8NoteTitleValue = NULL;
 
+        free(utf8NoteValue);
+        utf8NoteValue = NULL;
+            
+        free(noteValue);
+        noteValue = NULL;
+        
+        free(noteTitleValue);
+        noteTitleValue = NULL;
     }break;
 	
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1152,6 +1164,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
         else if (ctrlId == ID_CLOSE_ALL_BUTTON) {
             free(notes_true);
+            notes_true = NULL;
             sqlite3_close(db);
             PostQuitMessage(0);
         }
@@ -1253,9 +1266,16 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         InvalidateRect(hwnd, NULL, TRUE);
         UpdateWindow(hwnd);
         free(noteContentBuffer);
+        noteContentBuffer = NULL;
+
         free(noteTitleBuffer);
+        noteTitleBuffer = NULL;
+
         free(utf8Content);
+        utf8Content = NULL;
+
         free(utf8Title);
+        utf8Title = NULL;
     }break;
 
     case WM_DESTROY:
@@ -1264,6 +1284,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         struct ScrollState* pScrollState = (struct ScrollState*)GetWindowLongPtr(hwnd, sizeof(LONG_PTR) * 2);
         if (pScrollState) {
             free(pScrollState);
+            pScrollState = NULL;
         }
         if(noteCount == 0)
             PostQuitMessage(0);
