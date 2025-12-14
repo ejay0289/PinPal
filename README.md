@@ -34,12 +34,13 @@ No frameworks. No bloat. Just fast, direct Windows programming.
 
 ## To do:
 - Add checklist
+- Keyboard shortcuts for quick note creation
+- System tray integration for quick access
 - Review design
 - Search / Filter Notes
 - Reminders and notifications. Optional pop-up reminders for specific notes.
 - Custom Fonts & Text Styles
 - Transparent effect, because why not
-- Minimize to tray
 - Pinning important notes in the pinboard
 - Tagging / Categories
 
