@@ -7,6 +7,8 @@
 #include <stdint.h>
 
 #define MAX_NOTE_TEXT_LEN 2056
+#define TOTAL_NUMBER_OF_TAGS 3
+
 
 
 struct Note {
@@ -18,7 +20,13 @@ struct Note {
     int tmpId;
     HWND noteHandle;
     uint32_t noteColor;
+    int tags[TOTAL_NUMBER_OF_TAGS];
 };
+
+enum noteTags {
+//TODO: Add meaningful tags for note filtering
+};
+
 
 int getNoteCount(sqlite3* db);
 uint32_t getNoteColor(int noteId);

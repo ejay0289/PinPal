@@ -81,6 +81,7 @@ HICON hDeleteIcon;
 HICON hDeleteMainWindowIcon;
 HICON hOptionIcon;
 HICON hPinIcon;
+HICON hPinboardIcon;
 HFONT hMainWindowContentFont;
 int tempInMemoryId = 0;
 
@@ -123,11 +124,11 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 
         HWND newNoteButton = CreateWindowEx(
-            0, L"BUTTON", L"New Note", WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
+            0, L"BUTTON", L"New", WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
             50, 0, 50, 50, hwnd, (HMENU)ID_NEW_NOTE_BUTTON, GetModuleHandle(0), NULL
         );
         HWND showAllNotes = CreateWindowEx(
-            0, L"BUTTON", L"Pin Board", WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
+            0, L"BUTTON", L"Board", WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
             100, 0, 50, 50, hwnd, (HMENU)ID_SHOW_ALL_NOTES_BUTTON, GetModuleHandle(0), NULL
         );
 
@@ -216,55 +217,6 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             return TRUE;
         }
 
-        if (dis->CtlID == ID_SHOW_ALL_NOTES_BUTTON)
-        {
-            HDC hdc = dis->hDC;
-            RECT rc = dis->rcItem;
-
-            HDC parentDC = GetDC(GetParent(dis->hwndItem));
-            int w = rc.right - rc.left;
-            int h = rc.bottom - rc.top;
-
-            BitBlt(hdc, 0, 0, w, h, parentDC, rc.left, rc.top, SRCCOPY);
-
-            ReleaseDC(GetParent(dis->hwndItem), parentDC);
-
-            COLORREF normalColor = RGB(230, 230, 230);
-            COLORREF hoverColor = RGB(210, 210, 210);
-            COLORREF clickColor = RGB(180, 180, 180);
-            COLORREF textColor = RGB(30, 30, 30);
-
-            COLORREF bg = normalColor;
-
-            if (dis->itemState & ODS_SELECTED)
-                bg = clickColor;
-            else if (dis->itemState & ODS_HOTLIGHT)
-                bg = hoverColor;
-
-            HBRUSH brush = CreateSolidBrush(bg);
-
-            HPEN pen = CreatePen(PS_SOLID, 1, RGB(180, 180, 180));
-            HPEN oldPen = SelectObject(hdc, pen);
-            HBRUSH oldBrush = SelectObject(hdc, brush);
-
-            RoundRect(hdc, rc.left, rc.top, rc.right, rc.bottom, 18, 18);
-
-            SelectObject(hdc, oldPen);
-            SelectObject(hdc, oldBrush);
-            DeleteObject(brush);
-            DeleteObject(pen);
-
-            SetBkMode(hdc, TRANSPARENT);
-            SetTextColor(hdc, textColor);
-
-            wchar_t text[64];
-            GetWindowText(dis->hwndItem, text, 64);
-
-            DrawText(hdc, text, -1, &rc, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-
-            return TRUE;
-        }
-
         if (dis->CtlID == ID_NEW_NOTE_BUTTON)
         {
             HDC hdc = dis->hDC;
@@ -298,10 +250,71 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
             RoundRect(hdc, rc.left, rc.top, rc.right, rc.bottom, 18, 18);
 
-            SelectObject(hdc, oldPen);
+            SetBkMode(hdc, TRANSPARENT);
+            SetTextColor(hdc, textColor);
+
+            wchar_t text[64];
+            GetWindowText(dis->hwndItem, text, 64);
+
+
+
+            int iconSize = 24;
+            int btnWidth = rc.right - rc.left;
+            int btnHeight = rc.bottom - rc.top;
+
+            int iconX = rc.left + iconSize/2;
+            int iconY = rc.top + (btnHeight - iconSize) / 2;
+
+            DrawIconEx(hdc, iconX, iconY, hPlusIcon,
+                iconSize, iconSize,
+                0,
+                0,
+                DI_NORMAL);
+
+            RECT textRect = rc;
+            textRect.left = iconX + 8;
+
+            DrawText(hdc, text, -1, &textRect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+
             SelectObject(hdc, oldBrush);
+            SelectObject(hdc, oldPen);
             DeleteObject(brush);
             DeleteObject(pen);
+            return TRUE;
+        }
+
+        if (dis->CtlID == ID_SHOW_ALL_NOTES_BUTTON)
+        {
+            HDC hdc = dis->hDC;
+            RECT rc = dis->rcItem;
+
+            HDC parentDC = GetDC(GetParent(dis->hwndItem));
+            int w = rc.right - rc.left;
+            int h = rc.bottom - rc.top;
+
+            BitBlt(hdc, 0, 0, w, h, parentDC, rc.left, rc.top, SRCCOPY);
+
+            ReleaseDC(GetParent(dis->hwndItem), parentDC);
+
+            COLORREF normalColor = RGB(230, 230, 230);
+            COLORREF hoverColor = RGB(210, 210, 210);
+            COLORREF clickColor = RGB(180, 180, 180);
+            COLORREF textColor = RGB(30, 30, 30);
+
+            COLORREF bg = normalColor;
+
+            if (dis->itemState & ODS_SELECTED)
+                bg = clickColor;
+            else if (dis->itemState & ODS_HOTLIGHT)
+                bg = hoverColor;
+
+            HBRUSH brush = CreateSolidBrush(bg);
+
+            HPEN pen = CreatePen(PS_SOLID, 1, RGB(180, 180, 180));
+            HPEN oldPen = SelectObject(hdc, pen);
+            HBRUSH oldBrush = SelectObject(hdc, brush);
+
+            RoundRect(hdc, rc.left, rc.top, rc.right, rc.bottom, 18, 18);
 
             SetBkMode(hdc, TRANSPARENT);
             SetTextColor(hdc, textColor);
@@ -309,8 +322,30 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             wchar_t text[64];
             GetWindowText(dis->hwndItem, text, 64);
 
-            DrawText(hdc, text, -1, &rc, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
+
+            int iconSize = 20;
+            int btnWidth = rc.right - rc.left;
+            int btnHeight = rc.bottom - rc.top;
+
+            int iconX = rc.left + iconSize/2;
+            int iconY = rc.top + (btnHeight - iconSize) / 2;
+
+            DrawIconEx(hdc, iconX, iconY, hPinboardIcon,
+                iconSize, iconSize,
+                0,
+                0,
+                DI_NORMAL);
+
+            RECT textRect = rc;
+            textRect.left = iconX + 8;
+
+            DrawText(hdc, text, -1, &textRect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+
+            SelectObject(hdc, oldBrush);
+            SelectObject(hdc, oldPen);
+            DeleteObject(brush);
+            DeleteObject(pen);
             return TRUE;
         }
 
@@ -356,7 +391,7 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             int btnWidth = rc.right - rc.left;
             int btnHeight = rc.bottom - rc.top;
 
-            int iconX = rc.left + iconSize;
+            int iconX = rc.left + iconSize/2;
             int iconY = rc.top + (btnHeight - iconSize) / 2;
 
             DrawIconEx(hdc, iconX, iconY, hPinIcon,
@@ -376,6 +411,7 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             DeleteObject(pen);
             return TRUE;
         }
+
     }
     break;
 
@@ -1319,7 +1355,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
     hOptionIcon = (HICON)LoadImage(
         hInstance,
-        MAKEINTRESOURCE(IDI_ICON1),
+        MAKEINTRESOURCE(IDI_MENU_ICON),
         IMAGE_ICON,
         256, 256,
         LR_CREATEDIBSECTION | LR_DEFAULTCOLOR
@@ -1344,6 +1380,14 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
     hPinIcon = (HICON)LoadImage(
         hInstance,
         MAKEINTRESOURCE(IDI_PIN_ICON),
+        IMAGE_ICON,
+        24, 24,
+        LR_DEFAULTCOLOR | LR_SHARED
+    );
+
+    hPinboardIcon = (HICON)LoadImage(
+        hInstance,
+        MAKEINTRESOURCE(IDI_PINBOARD_ICON),
         IMAGE_ICON,
         24, 24,
         LR_DEFAULTCOLOR | LR_SHARED

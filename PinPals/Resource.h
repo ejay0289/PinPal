@@ -10,7 +10,7 @@
 #define IDD_ABOUTBOX                    103
 #define IDM_ABOUT                       104
 #define IDM_EXIT                        105
-#define IDI_ICON1                       105
+#define IDI_MENU_ICON                   105
 #define IDR_BIN1                        106
 #define IDI_SMALL                       108
 #define IDC_PINPALS                     109
@@ -18,6 +18,7 @@
 #define IDI_DELETE_ICON						111
 #define IDI_DELETE_MAIN_WINDOW			112
 #define IDI_PIN_ICON					113
+#define IDI_PINBOARD_ICON				114
 
 #define IDR_MAINFRAME                   128
 #define IDC_STATIC                      -1
