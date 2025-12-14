@@ -41,7 +41,6 @@ No frameworks. No bloat. Just fast, direct Windows programming.
 - Reminders and notifications. Optional pop-up reminders for specific notes.
 - Custom Fonts & Text Styles
 - Transparent effect, because why not
-- Minimize to tray
 - Pinning important notes in the pinboard
 - Tagging / Categories
 
