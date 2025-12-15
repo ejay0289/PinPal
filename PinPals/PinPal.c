@@ -117,30 +117,31 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     {
         SetWindowLongPtr(hwnd, NOTE_TOPMOST_STATE, 0);
         SetWindowLongPtr(hwnd, NOTE_COLOR, (LONG_PTR)noteColors[0]);
+
+        //Positions and sizes NULLED because I set them in WM_CREATE
         HWND notePin = CreateWindowEx(
             0,L"BUTTON",L"Pin",WS_CHILD | WS_VISIBLE| BS_OWNERDRAW,
-            0,0,50,50,hwnd,(HMENU)ID_PIN_BUTTON,GetModuleHandle(0),NULL
+            0,0,0,0,hwnd,(HMENU)ID_PIN_BUTTON,GetModuleHandle(0),NULL
         );
-
 
         HWND newNoteButton = CreateWindowEx(
             0, L"BUTTON", L"New", WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-            50, 0, 50, 50, hwnd, (HMENU)ID_NEW_NOTE_BUTTON, GetModuleHandle(0), NULL
+            0, 0, 0, 0, hwnd, (HMENU)ID_NEW_NOTE_BUTTON, GetModuleHandle(0), NULL
         );
         HWND showAllNotes = CreateWindowEx(
             0, L"BUTTON", L"Board", WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-            100, 0, 50, 50, hwnd, (HMENU)ID_SHOW_ALL_NOTES_BUTTON, GetModuleHandle(0), NULL
+            0, 0, 0, 0, hwnd, (HMENU)ID_SHOW_ALL_NOTES_BUTTON, GetModuleHandle(0), NULL
         );
 
         HWND deleteNote = CreateWindowEx(
             0, L"BUTTON", L"Del", WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-            150, 0, 50, 50, hwnd, (HMENU)ID_DELETE_NOTE_BUTTON, GetModuleHandle(0), 0
+            0, 0, 0, 0, hwnd, (HMENU)ID_DELETE_NOTE_BUTTON, GetModuleHandle(0), 0
         );
 
         HWND titleEdit = CreateWindowEx(
             0, L"EDIT", L"",
             WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
-            50, 0, 300, 20, hwnd, (HMENU)ID_NOTE_TITLE, GetModuleHandle(NULL),
+            0, 0, 0, 0, hwnd, (HMENU)ID_NOTE_TITLE, GetModuleHandle(NULL),
             NULL
         );
         SendMessage(titleEdit, EM_SETCUEBANNER, FALSE, (LPARAM)L"Title");
@@ -150,7 +151,7 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         HWND textArea = CreateWindowEx(
             0, L"EDIT", L"",
             WS_CHILD | WS_VISIBLE | ES_MULTILINE |ES_AUTOVSCROLL | WS_VSCROLL | ES_WANTRETURN,
-            0, 0, 100, 100, hwnd, (HMENU)ID_TEXT, GetModuleHandle(NULL),
+            0, 0, 0, 0, hwnd, (HMENU)ID_TEXT, GetModuleHandle(NULL),
             NULL
         );
 
@@ -248,7 +249,8 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             HPEN oldPen = SelectObject(hdc, pen);
             HBRUSH oldBrush = SelectObject(hdc, brush);
 
-            RoundRect(hdc, rc.left, rc.top, rc.right, rc.bottom, 18, 18);
+            int cornerRadius = 18;
+            RoundRect(hdc, rc.left, rc.top, rc.right, rc.bottom, cornerRadius, cornerRadius);
 
             SetBkMode(hdc, TRANSPARENT);
             SetTextColor(hdc, textColor);
@@ -272,7 +274,9 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                 DI_NORMAL);
 
             RECT textRect = rc;
-            textRect.left = iconX + 8;
+
+            int padding = 8;
+            textRect.left = iconX + padding;
 
             DrawText(hdc, text, -1, &textRect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
@@ -322,8 +326,6 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             wchar_t text[64];
             GetWindowText(dis->hwndItem, text, 64);
 
-
-
             int iconSize = 20;
             int btnWidth = rc.right - rc.left;
             int btnHeight = rc.bottom - rc.top;
@@ -338,7 +340,9 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                 DI_NORMAL);
 
             RECT textRect = rc;
-            textRect.left = iconX + 8;
+
+            int padding = 8;
+            textRect.left = iconX + padding;
 
             DrawText(hdc, text, -1, &textRect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
@@ -379,7 +383,8 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
             HBRUSH oldBrush = SelectObject(hdc, brush);
 
-            RoundRect(hdc, rc.left, rc.top, rc.right, rc.bottom, 20, 20);
+            int radius = 20;
+            RoundRect(hdc, rc.left, rc.top, rc.right, rc.bottom, radius, radius);
 
             SetBkMode(hdc, TRANSPARENT);
             SetTextColor(hdc, RGB(30,30,30));
@@ -401,7 +406,9 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                 DI_NORMAL);
 
             RECT textRect = rc;
-            textRect.left = iconX + 8;
+
+            int padding = 8;
+            textRect.left = iconX + padding;
 
             DrawText(hdc, text, -1, &textRect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
@@ -618,18 +625,19 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         int totalButtonCount = 3;
         int totalButtonWidth = buttonWidth * 3;
         int halfwayWindowXValue = (windowWidth - totalButtonWidth) / 2;
+        int buttonYValue = 0;
 
 
-        MoveWindow(pinButton, halfwayWindowXValue, 0, buttonWidth, buttonHeight, TRUE);
-        MoveWindow(newNoteButton, halfwayWindowXValue + buttonWidth, 0, buttonWidth, buttonHeight, TRUE);
-        MoveWindow(showAllButton, halfwayWindowXValue + (buttonWidth * 2), 0, buttonWidth, buttonHeight, TRUE);
+        MoveWindow(pinButton, halfwayWindowXValue, buttonYValue, buttonWidth, buttonHeight, TRUE);
+        MoveWindow(newNoteButton, halfwayWindowXValue + buttonWidth, buttonYValue, buttonWidth, buttonHeight, TRUE);
+        MoveWindow(showAllButton, halfwayWindowXValue + (buttonWidth * 2), buttonYValue, buttonWidth, buttonHeight, TRUE);
 
         //Original positions
         //MoveWindow(pinButton, 0, 0, buttonWidth, buttonHeight, TRUE);
         //MoveWindow(newNoteButton, buttonWidth,0, buttonWidth, buttonHeight, TRUE);
         //MoveWindow(showAllButton, buttonWidth * 2, 0, buttonWidth, buttonHeight, TRUE);
 
-        MoveWindow(deleteNoteButton, windowWidth - buttonHeight, 0, buttonHeight,buttonHeight, TRUE);
+        MoveWindow(deleteNoteButton, windowWidth - buttonHeight, buttonYValue, buttonHeight,buttonHeight, TRUE);
 
 //Fit text area on resize
        MoveWindow(titleEdit, 0, buttonHeight, windowWidth, titleEditHeight, TRUE);
@@ -642,13 +650,22 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     }break;
 
     case WM_CLOSE:
-        SendMessage(hmainWindowHandle, WM_APP_NOTE_CLOSED, (WPARAM)hwnd, (LPARAM)hwnd);
-		//If I destroy I will have to spawn a new window, grab the text(from the
-		//RECT for now until I can get SQLite running) stick it in the edit and somehow reestablish abort
-		//link between the new window and the note
-        //DestroyWindow(hwnd);
-		ShowWindow(hwnd,SW_HIDE);
-        break;
+    {
+        //SendMessage(hmainWindowHandle, WM_APP_NOTE_CLOSED, (WPARAM)hwnd, (LPARAM)hwnd);
+        HWND hEdit = GetDlgItem(hwnd, ID_TEXT);
+        HWND hTitleEdit = GetDlgItem(hwnd, ID_NOTE_TITLE);
+
+        int noteContentLength = GetWindowTextLength(hEdit);
+        int noteTitleLength = GetWindowTextLength(hTitleEdit);
+
+        if (noteContentLength == 0 && noteTitleLength == 0) {
+            int tmpId = (int)GetWindowLongPtr(hwnd, NOTE_TEMP_ID);
+            SendMessage(hmainWindowHandle, WM_APP_NOTE_DELETED, (WPARAM)tmpId, 0);
+        }
+
+        DestroyWindow(hwnd);
+    }break;
+
     case WM_DESTROY:
 
         break;
