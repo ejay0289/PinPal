@@ -615,10 +615,21 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         int titleEditHeight = 35;
         int noteEditHeight = windowHeight - titleEditHeight - buttonHeight - COLOR_HEIGHT;
 
-        MoveWindow(pinButton, 0, 0, buttonWidth, buttonHeight, TRUE);
-        MoveWindow(newNoteButton, buttonWidth,0, buttonWidth, buttonHeight, TRUE);
-        MoveWindow(showAllButton, buttonWidth * 2, 0, buttonWidth, buttonHeight, TRUE);
-        MoveWindow(deleteNoteButton, windowWidth - 24, 0, 24,24, TRUE);
+        int totalButtonCount = 3;
+        int totalButtonWidth = buttonWidth * 3;
+        int halfwayWindowXValue = (windowWidth - totalButtonWidth) / 2;
+
+
+        MoveWindow(pinButton, halfwayWindowXValue, 0, buttonWidth, buttonHeight, TRUE);
+        MoveWindow(newNoteButton, halfwayWindowXValue + buttonWidth, 0, buttonWidth, buttonHeight, TRUE);
+        MoveWindow(showAllButton, halfwayWindowXValue + (buttonWidth * 2), 0, buttonWidth, buttonHeight, TRUE);
+
+        //Original positions
+        //MoveWindow(pinButton, 0, 0, buttonWidth, buttonHeight, TRUE);
+        //MoveWindow(newNoteButton, buttonWidth,0, buttonWidth, buttonHeight, TRUE);
+        //MoveWindow(showAllButton, buttonWidth * 2, 0, buttonWidth, buttonHeight, TRUE);
+
+        MoveWindow(deleteNoteButton, windowWidth - buttonHeight, 0, buttonHeight,buttonHeight, TRUE);
 
 //Fit text area on resize
        MoveWindow(titleEdit, 0, buttonHeight, windowWidth, titleEditHeight, TRUE);
