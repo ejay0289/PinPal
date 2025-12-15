@@ -781,6 +781,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         int scrollbarWidth = GetSystemMetrics(SM_CXVSCROLL);
         int topRightX = windowWidth - scrollbarWidth - 100;
 
+        HWND searchEdit = CreateWindowEx(
+            0, L"EDIT", L"",
+            WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
+            50, 0, 150, 20, hwnd, (HMENU)ID_NOTE_TITLE, GetModuleHandle(NULL),
+            NULL
+        );
+        SendMessage(searchEdit, EM_SETCUEBANNER, FALSE, (LPARAM)L"Search");
 
         HWND optionsButton = CreateWindowEx(
             0, L"BUTTON", L"",
