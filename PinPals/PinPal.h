@@ -15,12 +15,14 @@ struct Note {
     RECT rect;
     wchar_t title[50];
     wchar_t text[MAX_NOTE_TEXT_LEN];
+    uint32_t noteColor;
+    HWND noteHandle;
     int textLen;
     int id;
     int tmpId;
-    HWND noteHandle;
-    uint32_t noteColor;
     int tags[TOTAL_NUMBER_OF_TAGS];
+    int noteWidth;//TODO: Persist note width and height in DB entry and restore to the last known state
+    int noteHeight;
 };
 
 enum noteTags {
@@ -36,7 +38,10 @@ char* getNoteContent(int noteId);
 char* getNoteTitle(int noteId);
 void RecalculateNotePositions(HWND hwnd);
 void calculateColorRectPosition(HWND hwnd);
+void initDb();
 int OpenDatabase(void);
 void updateDatabaseEntry(int noteId, const char* noteContent, const char* noteTitle, uint32_t noteColor);
 wchar_t* Utf8ToWide(const char* utf8);
+void searchDatabase(const char* searchText);
+
 

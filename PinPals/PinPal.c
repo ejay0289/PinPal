@@ -35,6 +35,7 @@ processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 #define ID_OPTIONS_BUTTON 3008
 #define ID_DELETE_NOTE_BUTTON 3009
 #define ID_NOTE_TITLE 3010
+#define ID_NOTE_SEARCH 3011
 
 //Per note offsets for cbWndExtra
 #define NOTE_EDIT_HANDLE 0
@@ -55,6 +56,7 @@ processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 #define WM_APP_NOTE_EDIT (WM_APP + 3)
 #define WM_APP_SAVE (WM_APP + 4)
 #define WM_APP_CALL_UPDATE_WINDOW (WM_APP + 5)
+#define WM_APP_SEARCH (WM_APP + 6)
 
 
 //constants
@@ -697,6 +699,41 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         return 0;
 
     }
+
+    case WM_CTLCOLOREDIT:
+    {
+        HWND hEdit = (HWND)lParam;
+
+
+        // Check if it's the text area and if it's empty
+        if (hEdit == GetDlgItem(hwnd, ID_NOTE_SEARCH))
+        {
+            int len = GetWindowTextLength(hEdit);
+            if (len == 0)
+            {
+                HDC hdc = (HDC)wParam;
+
+                SetTextColor(hdc, RGB(150, 150, 150)); // Gray color
+                SetBkMode(hdc, TRANSPARENT);
+
+                RECT rc;
+                GetClientRect(hEdit, &rc);
+                rc.left += 2;
+                rc.top += 2;
+
+                DrawText(hdc, L"Your pin here...", -1, &rc,
+                    DT_LEFT | DT_TOP | DT_NOPREFIX);
+            }
+        }
+
+        COLORREF storedColor = (COLORREF)GetWindowLongPtr(hwnd, NOTE_COLOR);
+        COLORREF newBackgroundColor = storedColor ? storedColor : noteColors[0];
+        HDC hdc = (HDC)wParam;
+        HBRUSH hBrush = CreateSolidBrush(newBackgroundColor);
+        SetBkColor(hdc, newBackgroundColor);
+        return (LRESULT)hBrush;
+    }
+
 	case WM_LBUTTONDOWN:
 	{
 
@@ -774,13 +811,18 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         int maxScroll = max(0, totalContentHeight - windowHeight);
 
 
-        int topRightX = windowWidth - scrollbarWidth - 50; 
+        int topRightX = windowWidth - 50; 
         int topRightY = 0;                                 
 
         HWND newNoteButton = (HWND)GetWindowLongPtr(hwnd, NEW_NOTE_BUTTON_HANDLE);
         MoveWindow(newNoteButton, topRightX - 50, topRightY, BUTTON_HEIGHT, BUTTON_HEIGHT, TRUE);
+
         HWND closeAllButton = GetDlgItem(hwnd, ID_CLOSE_ALL_BUTTON);
         MoveWindow(closeAllButton, topRightX, topRightY, 50, 50, TRUE);
+
+        HWND searchEdit = GetDlgItem(hwnd, ID_NOTE_SEARCH);
+        int editWidth = windowWidth - BUTTON_HEIGHT * 3;
+        MoveWindow(searchEdit, BUTTON_HEIGHT , 0, editWidth,25,TRUE);
         InvalidateRect(hwnd, NULL, 1);
         UpdateWindow(hwnd);
 
@@ -801,7 +843,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         HWND searchEdit = CreateWindowEx(
             0, L"EDIT", L"",
             WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
-            50, 0, 150, 20, hwnd, (HMENU)ID_NOTE_TITLE, GetModuleHandle(NULL),
+            50, 0, 150, 20, hwnd, (HMENU)ID_NOTE_SEARCH, GetModuleHandle(NULL),
             NULL
         );
         SendMessage(searchEdit, EM_SETCUEBANNER, FALSE, (LPARAM)L"Search");
@@ -1122,6 +1164,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     }break;
 	
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    case WM_APP_SEARCH:
+        break;
+
     case WM_APP_NOTE_DELETED:
     {
         int deletedTmpId = (int)wParam; //tmpId
@@ -1167,14 +1213,49 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         }
     } break;
 
+    case WM_TIMER:
+    {
+        if (wParam == 1) {
+            KillTimer(hwnd, 1);
+
+            HWND searchEdit = GetDlgItem(hwnd, ID_NOTE_SEARCH);
+            int searchTextLength = GetWindowTextLength(searchEdit);
+
+                wchar_t* wideBuffer = malloc((searchTextLength + 1) * sizeof(wchar_t));
+                if (!wideBuffer) break;
+
+                GetWindowText(searchEdit, wideBuffer, searchTextLength + 1);
+
+                // Convert to UTF-8 for database query
+                int utf8Len = WideCharToMultiByte(CP_UTF8, 0, wideBuffer, -1, NULL, 0, NULL, NULL);
+                char* utf8Buffer = malloc(utf8Len);
+                if (utf8Buffer) {
+                    WideCharToMultiByte(CP_UTF8, 0, wideBuffer, -1, utf8Buffer, utf8Len, NULL, NULL);
+
+                    searchDatabase(utf8Buffer);
+
+                    free(utf8Buffer);
+                }
+                free(wideBuffer);
+        }
+    }break;
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     case WM_COMMAND:
     {
         int ctrlId = LOWORD(wParam);
         int notifCode = HIWORD(wParam);
 
+
+        if (ctrlId == ID_NOTE_SEARCH && notifCode == EN_CHANGE) {
+            KillTimer(hwnd, 1);
+            SetTimer(hwnd, 1, 300, NULL);  // debounce 300ms
+        }
             switch (notifCode)
             {
+
+
+
+
             case BN_CLICKED:
             {
                 
@@ -1431,64 +1512,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 
    OpenDatabase();
-   noteCount = getNoteCount(db);
-   notes_true = malloc(sizeof(struct Note) * noteCount) ;
-
-   wchar_t* content;
-   RECT rect = { 10, 10, 210, 110 };
-
-   sqlite3_stmt* stmt;
-   const char* sql = "SELECT id, title, content,color FROM notes ORDER BY id DESC;";
-
-   if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
-       MessageBoxA(NULL, sqlite3_errmsg(db), L"Failed to prepare select", MB_OK | MB_ICONERROR);
-   }
-   else {
-       int i = 0;
-       while (sqlite3_step(stmt) == SQLITE_ROW) 
-       {
-           notes_true[i].id = sqlite3_column_int(stmt, 0);
-           
-           const uint32_t color = (uint32_t)sqlite3_column_int64(stmt, 3);
-           notes_true[i].noteColor = color;
-           notes_true[i].rect = rect;
-
-           // ----- Read UTF-8 from SQLite -----
-           const char* titleUtf8 = (const char*)sqlite3_column_text(stmt, 1);
-           const char* contentUtf8 = (const char*)sqlite3_column_text(stmt, 2);
-
-           // Safe for NULL columns
-           if (!titleUtf8)   titleUtf8 = "";
-           if (!contentUtf8) contentUtf8 = "";
-
-           // ----- Convert UTF-8 → UTF-16 for title -----
-           int titleLenW = MultiByteToWideChar(CP_UTF8, 0, titleUtf8, -1, NULL, 0);
-           if (titleLenW > 0) {
-               MultiByteToWideChar(CP_UTF8, 0, titleUtf8, -1,
-                   notes_true[i].title,
-                   sizeof(notes_true[i].title) / sizeof(wchar_t));
-           }
-           else {
-               notes_true[i].title[0] = L'\0';
-           }
-
-           // ----- Convert UTF-8 → UTF-16 for content -----
-           int contentLenW = MultiByteToWideChar(CP_UTF8, 0, contentUtf8, -1, NULL, 0);
-           if (contentLenW > 0) {
-               MultiByteToWideChar(CP_UTF8, 0, contentUtf8, -1,
-                   notes_true[i].text,
-                   sizeof(notes_true[i].text) / sizeof(wchar_t));
-               notes_true[i].textLen = contentLenW - 1; // no null terminator
-           }
-           else {
-               notes_true[i].text[0] = L'\0';
-               notes_true[i].textLen = 0;
-           }
-
-           i++;
-       }
-       sqlite3_finalize(stmt);
-   }
+   initDb();
 
    ////////////////////////////////////
 
@@ -1575,6 +1599,76 @@ int getNoteCount(sqlite3* db) {
         sqlite3_finalize(stmt);
     }
     return count;
+}
+
+
+void initDb() {
+    if (notes_true) {
+        free(notes_true);
+        notes_true = NULL;
+    }
+    noteCount = getNoteCount(db);
+    notes_true = malloc(sizeof(struct Note) * noteCount);
+    if (!notes_true) {
+        MessageBox(NULL, L"Memory allocation failed", L"Error", MB_OK | MB_ICONERROR);
+        noteCount = 0;
+        return;
+    }
+
+    wchar_t* content;
+    RECT rect = { 10, 10, 210, 110 };
+
+    sqlite3_stmt* stmt;
+    const char* sql = "SELECT id, title, content,color FROM notes ORDER BY id DESC;";
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+        MessageBoxA(NULL, sqlite3_errmsg(db), L"Failed to prepare select", MB_OK | MB_ICONERROR);
+    }
+    else {
+        int i = 0;
+        while (sqlite3_step(stmt) == SQLITE_ROW)
+        {
+            notes_true[i].id = sqlite3_column_int(stmt, 0);
+
+            const uint32_t color = (uint32_t)sqlite3_column_int64(stmt, 3);
+            notes_true[i].noteColor = color;
+            notes_true[i].rect = rect;
+
+            // ----- Read UTF-8 from SQLite -----
+            const char* titleUtf8 = (const char*)sqlite3_column_text(stmt, 1);
+            const char* contentUtf8 = (const char*)sqlite3_column_text(stmt, 2);
+
+            if (!titleUtf8)   titleUtf8 = "";
+            if (!contentUtf8) contentUtf8 = "";
+
+            // ----- Convert UTF-8 to UTF-16 for title -----
+            int titleLenW = MultiByteToWideChar(CP_UTF8, 0, titleUtf8, -1, NULL, 0);
+            if (titleLenW > 0) {
+                MultiByteToWideChar(CP_UTF8, 0, titleUtf8, -1,
+                    notes_true[i].title,
+                    sizeof(notes_true[i].title) / sizeof(wchar_t));
+            }
+            else {
+                notes_true[i].title[0] = L'\0';
+            }
+
+            // ----- Convert UTF-8 to UTF-16 for content -----
+            int contentLenW = MultiByteToWideChar(CP_UTF8, 0, contentUtf8, -1, NULL, 0);
+            if (contentLenW > 0) {
+                MultiByteToWideChar(CP_UTF8, 0, contentUtf8, -1,
+                    notes_true[i].text,
+                    sizeof(notes_true[i].text) / sizeof(wchar_t));
+                notes_true[i].textLen = contentLenW - 1; // no null terminator
+            }
+            else {
+                notes_true[i].text[0] = L'\0';
+                notes_true[i].textLen = 0;
+            }
+
+            i++;
+        }
+        sqlite3_finalize(stmt);
+    }
 }
 
 int OpenDatabase(void) {
@@ -1817,7 +1911,93 @@ void RecalculateNotePositions(HWND hwnd) {
 }
 
 
+void searchDatabase(const char* searchText)
+{
+    // If search is empty, show all notes
+    if (!searchText || strlen(searchText) == 0) {
+        if (notes_true) {
+            free(notes_true);
+            notes_true = NULL;
+        }
+        noteCount = 0;
 
+        initDb();
+        RecalculateNotePositions(hmainWindowHandle);
+        InvalidateRect(hmainWindowHandle, NULL, TRUE);
+        return;
+    }
+
+    const char* sql =
+        "SELECT id, title, content, color FROM notes WHERE title LIKE ? COLLATE NOCASE OR content LIKE ? COLLATE NOCASE ORDER BY id DESC;";
+
+    sqlite3_stmt* stmt;
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+        MessageBoxA(NULL, sqlite3_errmsg(db), "Prepare failed", MB_OK | MB_ICONERROR);
+        return;
+    }
+
+    char pattern[256];
+    snprintf(pattern, sizeof(pattern), "%%%s%%", searchText);
+
+    sqlite3_bind_text(stmt, 1, pattern, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, pattern, -1, SQLITE_TRANSIENT);
+
+    // Clear current notes
+    if (notes_true) {
+        free(notes_true);
+        notes_true = NULL;
+    }
+    noteCount = 0;
+
+    // Count results first
+    int resultCount = 0;
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        resultCount++;
+    }
+
+    // Reset statement
+    sqlite3_reset(stmt);
+
+    // Allocate new array
+    if (resultCount > 0) {
+        notes_true = malloc(sizeof(struct Note) * resultCount);
+        if (!notes_true) {
+            sqlite3_finalize(stmt);
+            MessageBox(NULL, L"Memory allocation failed", L"Error", MB_OK | MB_ICONERROR);
+            return;
+        }
+        noteCount = resultCount;
+
+        int i = 0;
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+            notes_true[i].id = sqlite3_column_int(stmt, 0);
+            notes_true[i].noteColor = (uint32_t)sqlite3_column_int64(stmt, 3);
+
+            const char* titleUtf8 = (const char*)sqlite3_column_text(stmt, 1);
+            const char* contentUtf8 = (const char*)sqlite3_column_text(stmt, 2);
+
+            if (!titleUtf8) titleUtf8 = "";
+            if (!contentUtf8) contentUtf8 = "";
+
+            // Convert UTF-8 to wide strings
+            MultiByteToWideChar(CP_UTF8, 0, titleUtf8, -1,
+                notes_true[i].title, sizeof(notes_true[i].title) / sizeof(wchar_t));
+
+            int contentLenW = MultiByteToWideChar(CP_UTF8, 0, contentUtf8, -1,
+                notes_true[i].text, sizeof(notes_true[i].text) / sizeof(wchar_t));
+            notes_true[i].textLen = contentLenW > 0 ? contentLenW - 1 : 0;
+
+            i++;
+        }
+    }
+
+    sqlite3_finalize(stmt);
+
+    // Recalculate positions and repaint
+    RecalculateNotePositions(hmainWindowHandle);
+    InvalidateRect(hmainWindowHandle, NULL, TRUE);
+}
 
 
 void updateDatabaseEntry(int noteId, const char* noteContent,const char* noteTitle,uint32_t noteColor) {
