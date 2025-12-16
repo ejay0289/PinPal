@@ -1512,7 +1512,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 
    OpenDatabase();
-   initDb();
+   initNotes();
 
    ////////////////////////////////////
 
@@ -1602,7 +1602,7 @@ int getNoteCount(sqlite3* db) {
 }
 
 
-void initDb() {
+void initNotes() {
     if (notes_true) {
         free(notes_true);
         notes_true = NULL;
@@ -1921,7 +1921,7 @@ void searchDatabase(const char* searchText)
         }
         noteCount = 0;
 
-        initDb();
+        initNotes();
         RecalculateNotePositions(hmainWindowHandle);
         InvalidateRect(hmainWindowHandle, NULL, TRUE);
         return;
@@ -1993,8 +1993,6 @@ void searchDatabase(const char* searchText)
     }
 
     sqlite3_finalize(stmt);
-
-    // Recalculate positions and repaint
     RecalculateNotePositions(hmainWindowHandle);
     InvalidateRect(hmainWindowHandle, NULL, TRUE);
 }
