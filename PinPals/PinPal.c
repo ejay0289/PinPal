@@ -711,6 +711,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
     }
 
+
+
     case WM_CTLCOLOREDIT:
     {
         HWND hEdit = (HWND)lParam;
@@ -790,12 +792,29 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     //Wndproc
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    case WM_GETMINMAXINFO:
+    {
+        // lParam is a pointer to a MINMAXINFO structure
+        LPMINMAXINFO lpMMI = (LPMINMAXINFO)lParam;
+
+        // Set the minimum tracking size (the limit when dragging borders)
+        lpMMI->ptMinTrackSize.x = 340; // Minimum width in pixels
+        lpMMI->ptMinTrackSize.y = 500; // Minimum height in pixels
+
+        // Note: You can also set a maximum limit if you want
+        // lpMMI->ptMaxTrackSize.x = 800; 
+
+        return 0; // Return 0 to tell Windows you've handled this
+    }
+
     case WM_SIZE:
     {
-        RECT rect;
-        GetClientRect(hwnd, &rect);
+        int windowWidth = LOWORD(lParam);
+        int windowHeight = HIWORD(lParam);
+        int scrollbarWidth = GetSystemMetrics(SM_CXVSCROLL);
+
         struct ScrollState* pScrollState = (struct ScrollState*)GetWindowLongPtr(hwnd, sizeof(LONG_PTR) * 2);
-        pScrollState->viewPortHeight = rect.bottom;
+        pScrollState->viewPortHeight = windowHeight;
 
         //set up vertical scroll. Damn this took a while to figure out
         SCROLLINFO si;
@@ -803,9 +822,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         si.nPage = pScrollState->viewPortHeight;
         SetScrollInfo(hwnd, SB_VERT, &si, TRUE);
 
-        int windowWidth = rect.right - rect.left;
-        int windowHeight = rect.bottom - rect.top;
-        int scrollbarWidth = GetSystemMetrics(SM_CXVSCROLL);
+
 
         if (noteCount > 0 && windowWidth < 800) {
             for (int i = 0; i < noteCount; i++) {
@@ -832,8 +849,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         MoveWindow(closeAllButton, topRightX, topRightY, 50, 50, TRUE);
 
         HWND searchEdit = GetDlgItem(hwnd, ID_NOTE_SEARCH);
-        int editWidth = windowWidth - BUTTON_HEIGHT * 3;
-        MoveWindow(searchEdit, BUTTON_HEIGHT , 0, editWidth,25,TRUE);
+        int editWidth = (windowWidth < 800) ? (windowWidth - (NOTE_MARGIN * 2)) : 800;
+        MoveWindow(searchEdit, NOTE_MARGIN, BUTTON_HEIGHT , editWidth,25,TRUE);
         InvalidateRect(hwnd, NULL, 1);
         UpdateWindow(hwnd);
 
@@ -879,7 +896,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         );
 
         hMainWindowContentFont = CreateFont(
-            -17,                // Height 
+            -16,                // Height 
             0, 0, 0,            // Width, escapement, orientation
             FW_NORMAL,          // Weight
             FALSE, FALSE, FALSE,// Italic, underline, strikeout
@@ -1038,7 +1055,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 
         SetBkMode(hdc, TRANSPARENT);
-
+        int noteBorderRadius = 5;
         for (int i = 0; i < noteCount; i++)
         {
 
@@ -1047,7 +1064,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, hBrush);
 
 
-            RoundRect(hdc, notes_true[i].rect.left, notes_true[i].rect.top, notes_true[i].rect.right, notes_true[i].rect.bottom,20,20);
+            RoundRect(hdc, notes_true[i].rect.left, notes_true[i].rect.top, notes_true[i].rect.right, notes_true[i].rect.bottom,noteBorderRadius,noteBorderRadius);
             
 
             RECT textRect = notes_true[i].rect;
@@ -1570,7 +1587,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
         windowClass,
         windowTitle,
         WS_OVERLAPPEDWINDOW | WS_VSCROLL ,
-        CW_USEDEFAULT, CW_USEDEFAULT, 400, 400,
+        CW_USEDEFAULT, CW_USEDEFAULT, 340, 400,
         NULL, NULL, hInstance, NULL);
 
     if (hmainWindowHandle == NULL)
