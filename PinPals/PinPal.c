@@ -727,7 +727,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         }
 
         COLORREF storedColor = (COLORREF)GetWindowLongPtr(hwnd, NOTE_COLOR);
-        COLORREF newBackgroundColor = storedColor ? storedColor : noteColors[0];
+        COLORREF newBackgroundColor = RGB(171,171,171);
         HDC hdc = (HDC)wParam;
         HBRUSH hBrush = CreateSolidBrush(newBackgroundColor);
         SetBkColor(hdc, newBackgroundColor);
