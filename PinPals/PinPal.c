@@ -63,7 +63,7 @@ processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 const wchar_t windowClass[] = L"myWindowClass";
 const wchar_t myNoteClass[] = L"myNoteclass";
 const wchar_t windowTitle[] = L"PinPal";
-#define NOTE_MARGIN 25
+#define NOTE_MARGIN 10
 #define NOTE_HEIGHT 100
 #define NOTE_WIDTH 200
 #define BUTTON_HEIGHT 50
@@ -796,14 +796,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         int windowHeight = rect.bottom - rect.top;
         int scrollbarWidth = GetSystemMetrics(SM_CXVSCROLL);
 
-        if (noteCount > 0 && (windowWidth - NOTE_MARGIN) < 800) {
+        if (noteCount > 0 && windowWidth < 800) {
             for (int i = 0; i < noteCount; i++) {
                 notes_true[i].rect.right = windowWidth - NOTE_MARGIN;
             }
 
         }
 
-        int totalContentHeight = (noteCount > 8)
+        int totalContentHeight = (noteCount > 0)
             ? notes_true[noteCount - 1].rect.bottom + NOTE_MARGIN
             : 0;
 
@@ -1027,8 +1027,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 
         SetBkMode(hdc, TRANSPARENT);
-
-        int theY = NOTE_MARGIN +50;
 
         for (int i = 0; i < noteCount; i++)
         {
@@ -1881,6 +1879,7 @@ void RecalculateNotePositions(HWND hwnd) {
     int yOffset = NOTE_MARGIN + 50;
     RECT rect;
     GetWindowRect(hwnd,&rect);
+    int scrollbarWidth = GetSystemMetrics(SM_CXVSCROLL);
     int windowWidth = rect.right - rect.left;
     int windowHeight = rect.bottom - rect.top;
 
@@ -1889,7 +1888,7 @@ void RecalculateNotePositions(HWND hwnd) {
     {
         notes_true[i].rect.left = NOTE_MARGIN;
         notes_true[i].rect.top = yOffset;
-        notes_true[i].rect.right = (windowWidth<800) ? (windowWidth - NOTE_MARGIN) : 800;
+        notes_true[i].rect.right = (windowWidth < 800) ? (windowWidth - (NOTE_MARGIN * 3) - scrollbarWidth ) : 800;
         notes_true[i].rect.bottom = yOffset + NOTE_HEIGHT;
         yOffset += NOTE_HEIGHT + NOTE_MARGIN;
     }
