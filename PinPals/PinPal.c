@@ -36,6 +36,7 @@ processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 #define ID_DELETE_NOTE_BUTTON 3009
 #define ID_NOTE_TITLE 3010
 #define ID_NOTE_SEARCH 3011
+#define ID_CHECK_BOX 3012
 
 //Per note offsets for cbWndExtra
 #define NOTE_EDIT_HANDLE 0
@@ -63,7 +64,7 @@ processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 const wchar_t windowClass[] = L"myWindowClass";
 const wchar_t myNoteClass[] = L"myNoteclass";
 const wchar_t windowTitle[] = L"PinPal";
-#define NOTE_MARGIN 25
+#define NOTE_MARGIN 10
 #define NOTE_HEIGHT 100
 #define NOTE_WIDTH 200
 #define BUTTON_HEIGHT 50
@@ -125,6 +126,16 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             0,L"BUTTON",L"Pin",WS_CHILD | WS_VISIBLE| BS_OWNERDRAW,
             0,0,0,0,hwnd,(HMENU)ID_PIN_BUTTON,GetModuleHandle(0),NULL
         );
+                /////////////////////////////////
+               ///                          //// 
+              ///TODO: Implement checklists////
+             ///                          ////
+            /////////////////////////////////
+        /*HWND checkBox = CreateWindow(TEXT("button"), TEXT("Show Title"),
+            WS_VISIBLE | WS_CHILD | BS_CHECKBOX,
+            20, 20, 185, 35,
+            hwnd, (HMENU)ID_CHECK_BOX, ((LPCREATESTRUCT)lParam)->hInstance, NULL);
+        CheckDlgButton(hwnd, ID_CHECK_BOX, BST_CHECKED);*/
 
         HWND newNoteButton = CreateWindowEx(
             0, L"BUTTON", L"New", WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
@@ -700,6 +711,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
     }
 
+
+
     case WM_CTLCOLOREDIT:
     {
         HWND hEdit = (HWND)lParam;
@@ -779,12 +792,29 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     //Wndproc
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    case WM_GETMINMAXINFO:
+    {
+        // lParam is a pointer to a MINMAXINFO structure
+        LPMINMAXINFO lpMMI = (LPMINMAXINFO)lParam;
+
+        // Set the minimum tracking size (the limit when dragging borders)
+        lpMMI->ptMinTrackSize.x = 340; // Minimum width in pixels
+        lpMMI->ptMinTrackSize.y = 500; // Minimum height in pixels
+
+        // Note: You can also set a maximum limit if you want
+        // lpMMI->ptMaxTrackSize.x = 800; 
+
+        return 0; // Return 0 to tell Windows you've handled this
+    }
+
     case WM_SIZE:
     {
-        RECT rect;
-        GetClientRect(hwnd, &rect);
+        int windowWidth = LOWORD(lParam);
+        int windowHeight = HIWORD(lParam);
+        int scrollbarWidth = GetSystemMetrics(SM_CXVSCROLL);
+
         struct ScrollState* pScrollState = (struct ScrollState*)GetWindowLongPtr(hwnd, sizeof(LONG_PTR) * 2);
-        pScrollState->viewPortHeight = rect.bottom;
+        pScrollState->viewPortHeight = windowHeight;
 
         //set up vertical scroll. Damn this took a while to figure out
         SCROLLINFO si;
@@ -792,18 +822,16 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         si.nPage = pScrollState->viewPortHeight;
         SetScrollInfo(hwnd, SB_VERT, &si, TRUE);
 
-        int windowWidth = rect.right - rect.left;
-        int windowHeight = rect.bottom - rect.top;
-        int scrollbarWidth = GetSystemMetrics(SM_CXVSCROLL);
 
-        if (noteCount > 0 && (windowWidth - NOTE_MARGIN) < 800) {
+
+        if (noteCount > 0 && windowWidth < 800) {
             for (int i = 0; i < noteCount; i++) {
                 notes_true[i].rect.right = windowWidth - NOTE_MARGIN;
             }
 
         }
 
-        int totalContentHeight = (noteCount > 8)
+        int totalContentHeight = (noteCount > 0)
             ? notes_true[noteCount - 1].rect.bottom + NOTE_MARGIN
             : 0;
 
@@ -821,8 +849,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         MoveWindow(closeAllButton, topRightX, topRightY, 50, 50, TRUE);
 
         HWND searchEdit = GetDlgItem(hwnd, ID_NOTE_SEARCH);
-        int editWidth = windowWidth - BUTTON_HEIGHT * 3;
-        MoveWindow(searchEdit, BUTTON_HEIGHT , 0, editWidth,25,TRUE);
+        int editWidth = (windowWidth < 800) ? (windowWidth - (NOTE_MARGIN * 2)) : 800;
+        MoveWindow(searchEdit, NOTE_MARGIN, BUTTON_HEIGHT , editWidth,25,TRUE);
         InvalidateRect(hwnd, NULL, 1);
         UpdateWindow(hwnd);
 
@@ -868,7 +896,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         );
 
         hMainWindowContentFont = CreateFont(
-            -17,                // Height 
+            -16,                // Height 
             0, 0, 0,            // Width, escapement, orientation
             FW_NORMAL,          // Weight
             FALSE, FALSE, FALSE,// Italic, underline, strikeout
@@ -1027,9 +1055,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 
         SetBkMode(hdc, TRANSPARENT);
-
-        int theY = NOTE_MARGIN +50;
-
+        int noteBorderRadius = 5;
         for (int i = 0; i < noteCount; i++)
         {
 
@@ -1038,7 +1064,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, hBrush);
 
 
-            RoundRect(hdc, notes_true[i].rect.left, notes_true[i].rect.top, notes_true[i].rect.right, notes_true[i].rect.bottom,20,20);
+            RoundRect(hdc, notes_true[i].rect.left, notes_true[i].rect.top, notes_true[i].rect.right, notes_true[i].rect.bottom,noteBorderRadius,noteBorderRadius);
             
 
             RECT textRect = notes_true[i].rect;
@@ -1561,7 +1587,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
         windowClass,
         windowTitle,
         WS_OVERLAPPEDWINDOW | WS_VSCROLL ,
-        CW_USEDEFAULT, CW_USEDEFAULT, 400, 400,
+        CW_USEDEFAULT, CW_USEDEFAULT, 340, 400,
         NULL, NULL, hInstance, NULL);
 
     if (hmainWindowHandle == NULL)
@@ -1881,6 +1907,7 @@ void RecalculateNotePositions(HWND hwnd) {
     int yOffset = NOTE_MARGIN + 50;
     RECT rect;
     GetWindowRect(hwnd,&rect);
+    int scrollbarWidth = GetSystemMetrics(SM_CXVSCROLL);
     int windowWidth = rect.right - rect.left;
     int windowHeight = rect.bottom - rect.top;
 
@@ -1889,7 +1916,7 @@ void RecalculateNotePositions(HWND hwnd) {
     {
         notes_true[i].rect.left = NOTE_MARGIN;
         notes_true[i].rect.top = yOffset;
-        notes_true[i].rect.right = (windowWidth<800) ? (windowWidth - NOTE_MARGIN) : 800;
+        notes_true[i].rect.right = (windowWidth < 800) ? (windowWidth - (NOTE_MARGIN * 3) - scrollbarWidth ) : 800;
         notes_true[i].rect.bottom = yOffset + NOTE_HEIGHT;
         yOffset += NOTE_HEIGHT + NOTE_MARGIN;
     }
