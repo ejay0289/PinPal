@@ -36,6 +36,7 @@ processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 #define ID_DELETE_NOTE_BUTTON 3009
 #define ID_NOTE_TITLE 3010
 #define ID_NOTE_SEARCH 3011
+#define ID_CHECK_BOX 3012
 
 //Per note offsets for cbWndExtra
 #define NOTE_EDIT_HANDLE 0
@@ -125,6 +126,16 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             0,L"BUTTON",L"Pin",WS_CHILD | WS_VISIBLE| BS_OWNERDRAW,
             0,0,0,0,hwnd,(HMENU)ID_PIN_BUTTON,GetModuleHandle(0),NULL
         );
+                /////////////////////////////////
+               ///                          //// 
+              ///TODO: Implement checklists////
+             ///                          ////
+            /////////////////////////////////
+        /*HWND checkBox = CreateWindow(TEXT("button"), TEXT("Show Title"),
+            WS_VISIBLE | WS_CHILD | BS_CHECKBOX,
+            20, 20, 185, 35,
+            hwnd, (HMENU)ID_CHECK_BOX, ((LPCREATESTRUCT)lParam)->hInstance, NULL);
+        CheckDlgButton(hwnd, ID_CHECK_BOX, BST_CHECKED);*/
 
         HWND newNoteButton = CreateWindowEx(
             0, L"BUTTON", L"New", WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
