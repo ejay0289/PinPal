@@ -55,26 +55,6 @@ No frameworks. No bloat. Just fast, direct Windows programming.
 
 ---
 
-## Design Goals
-
-- Stay **simple and native**
-- Avoid unnecessary abstractions
-- Learn and leverage **real Win32 patterns**
-- Build something useful while understanding *exactly* how it works
----
-
-## To do:
-- Add checklist
-- Keyboard shortcuts for quick note creation
-- System tray integration for quick access
-- Review design
-- [x]~~Search / Filter Notes~~
-- Reminders and notifications. Optional pop-up reminders for specific notes.
-- Custom Fonts & Text Styles
-- Transparent effect, because why not
-- Pinning important notes in the pinboard
-- Tagging / Categories
-
 ## 🛠How To Build
 
 PinPal can be compiled using either the Microsoft Visual C++ compiler (via Visual Studio) or GCC (via MinGW-w64).
@@ -107,6 +87,28 @@ cd PinPal
 Bash
 
 <pre>gcc PinPal.c ./sqlite/sqlite3.c Resource.res -o PinPal.exe -municode -mwindows -Wl,-subsystem,windows -luser32 -lgdi32 -lcomctl32 -lshell32 -O2</pre>
+
+---
+
+## Design Goals
+
+- Stay **simple and native**
+- Avoid unnecessary abstractions
+- Learn and leverage **real Win32 patterns**
+- Build something useful while understanding *exactly* how it works
+---
+
+## To do:
+- Add checklist
+- Keyboard shortcuts for quick note creation
+- System tray integration for quick access
+- Review design
+- [x]~~Search / Filter Notes~~
+- Reminders and notifications. Optional pop-up reminders for specific notes.
+- Custom Fonts & Text Styles
+- Transparent effect, because why not
+- Pinning important notes in the pinboard
+- Tagging / Categories
 
 ---
 
