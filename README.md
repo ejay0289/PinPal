@@ -73,6 +73,37 @@ No frameworks. No bloat. Just fast, direct Windows programming.
 - Avoid unnecessary abstractions
 - Learn and leverage **real Win32 patterns**
 - Build something useful while understanding *exactly* how it works
+---
+## 🛠How To Build
+
+PinPal can be compiled using either the Microsoft Visual C++ compiler (via Visual Studio) or GCC (via MinGW-w64).
+Option 1: Visual Studio (Recommended)
+1. Clone the repository
+   
+`git clone https://github.com/ejay0289/PinPal.git`
+`cd PinPal/PinPals`
+
+3. Open the .sln file located in the root directory using Visual Studio 2022.
+4. Set your build configuration to Release and your architecture to x64.
+5. Press Ctrl + Shift + B or go to Build > Build Solution.
+
+Option 2: GCC (MinGW-w64)
+
+If you prefer using the command line with GCC, ensure you have MinGW-w64 installed and added to your System PATH.
+
+1. Clone and Navigate
+
+`git clone https://github.com/ejay0289/PinPal.git`
+`cd PinPal`
+
+2. Compile Resources: Use windres to compile the Windows resource script (icons, manifests, etc.) into a linkable object file:
+
+`windres Resource.rc -O coff -o Resource.res`
+
+3. Compile and Link: Run the following command to build the executable. The -mwindows flag ensures the app launches without a console window attached.
+Bash
+
+`gcc PinPal.c ./sqlite/sqlite3.c Resource.res -o PinPal.exe -municode -mwindows -luser32 -lgdi32 -lcomctl32 -lshell32 -O2`
 
 ---
 
