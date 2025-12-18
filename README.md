@@ -92,9 +92,10 @@ Option 2: GCC (MinGW-w64)
 If you prefer using the command line with GCC, ensure you have MinGW-w64 installed and added to your System PATH.
 
 1. Clone and Navigate
-
-`git clone https://github.com/ejay0289/PinPal.git`
-`cd PinPal`
+<pre>
+git clone https://github.com/ejay0289/PinPal.git
+cd PinPal 
+</pre>
 
 2. Compile Resources: Use windres to compile the Windows resource script (icons, manifests, etc.) into a linkable object file:
 
