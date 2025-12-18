@@ -105,7 +105,7 @@ cd PinPal
 3. Compile and Link: Run the following command to build the executable. The -mwindows flag ensures the app launches without a console window attached.
 Bash
 
-<pre>gcc PinPal.c ./sqlite/sqlite3.c Resource.res -o PinPal.exe -municode -mwindows -luser32 -lgdi32 -lcomctl32 -lshell32 -O2</pre>
+<pre>gcc PinPal.c ./sqlite/sqlite3.c Resource.res -o PinPal.exe -municode -mwindows -Wl,-subsystem,windows -luser32 -lgdi32 -lcomctl32 -lshell32 -O2</pre>
 
 ---
 
