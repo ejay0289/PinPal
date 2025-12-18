@@ -39,6 +39,10 @@ processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 #define ID_CHECK_BOX 3012
 #define ID_SIDE_PANEL 3013
 #define ID_SIDE_PANEL_TOGGLE 3014
+#define ID_PANEL_CHECKLIST 3015
+#define ID_PANEL_TAGS 3016
+#define ID_PANEL_BOLD 3017
+#define ID_PANEL_ITALIC 3018
 
 
 //Per note offsets for cbWndExtra
@@ -77,6 +81,7 @@ const wchar_t windowTitle[] = L"PinPal";
 #define COLOR_WIDTH 50
 #define SEARCH_HEIGHT 25
 #define SIDE_PANEL_WIDTH 200
+#define SIDE_PANEL_BUTTON_COUNT 4
 
 
 //Globals
@@ -116,6 +121,14 @@ struct ScrollState {
     int viewPortHeight; //visible area height
 };
 
+LRESULT CALLBACK SidePanelSubclassProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData) {
+    if (msg == WM_COMMAND) {
+        // Forward button clicks from the panel to the main Note window
+        SendMessage(GetParent(hwnd), WM_COMMAND, wParam, lParam);
+        return 0;
+    }
+    return DefSubclassProc(hwnd, msg, wParam, lParam);
+}
 
 LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {   
@@ -205,13 +218,14 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         hwndSidePanel = CreateWindowEx(
             WS_EX_TOPMOST,  // Add topmost extended style
             L"Static", L"Side Panel",
-            WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS,
+            WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | SS_NOTIFY | WS_CLIPCHILDREN,
             0, 0, 0, 0,  // Height will be set in WM_SIZE
             hwnd,  // ← PARENT IS NOW textArea, not hwnd!
             (HMENU)ID_SIDE_PANEL,
             GetModuleHandle(NULL),
             NULL
         );
+        SetWindowSubclass(hwndSidePanel, SidePanelSubclassProc, 0, 0);
 
         HWND togglePanelButton = CreateWindowEx(
             0, L"BUTTON", L"☰",  // Hamburger menu icon
@@ -222,6 +236,41 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             GetModuleHandle(0),
             NULL
         );
+
+        HWND checklistButton = CreateWindowEx(
+            0, L"BUTTON", L"Save",
+            WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+            10, 50, 80, 30,  // Coordinates relative to the PANEL
+            hwndSidePanel,   // <--- The Panel is the parent
+            (HMENU)ID_PANEL_CHECKLIST, GetModuleHandle(0), NULL
+        );
+        
+        HWND tagsButton = CreateWindowEx(
+            0, L"BUTTON", L"Save",
+            WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+            10, 50, 80, 30,  // Coordinates relative to the PANEL
+            hwndSidePanel,   // <--- The Panel is the parent
+            (HMENU)ID_PANEL_TAGS, GetModuleHandle(0), NULL
+        );
+
+        HWND boldButton = CreateWindowEx(
+            0, L"BUTTON", L"Save",
+            WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+            10, 50, 80, 30,  // Coordinates relative to the PANEL
+            hwndSidePanel,   // <--- The Panel is the parent
+            (HMENU)ID_PANEL_BOLD, GetModuleHandle(0), NULL
+        );
+
+
+        HWND italicButton = CreateWindowEx(
+            0, L"BUTTON", L"Save",
+            WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+            10, 50, 80, 30,  // Coordinates relative to the PANEL
+            hwndSidePanel,   // <--- The Panel is the parent
+            (HMENU)ID_PANEL_ITALIC, GetModuleHandle(0), NULL
+        );
+
+
 
         // Make it always on top
         SetWindowPos(hwndSidePanel, HWND_TOP, 0, 0, 0, 0,
@@ -683,13 +732,11 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
         HWND textArea = (HWND)GetWindowLongPtr(hwnd, NOTE_EDIT_HANDLE);
         HWND titleEdit = (HWND)GetWindowLongPtr(hwnd, NOTE_TITLE_HANDLE);
-        HWND text = (HWND)GetDlgItem(hwnd, ID_TEXT);
 
         HWND pinButton = GetDlgItem(hwnd, ID_PIN_BUTTON);
         HWND showAllButton = GetDlgItem(hwnd, ID_SHOW_ALL_NOTES_BUTTON);
         HWND newNoteButton = GetDlgItem(hwnd, ID_NEW_NOTE_BUTTON);
         HWND deleteNoteButton = GetDlgItem(hwnd, ID_DELETE_NOTE_BUTTON);
-        HWND sidePanelToggleButton = (HWND)GetDlgItem(hwnd, ID_SIDE_PANEL_TOGGLE);
 
         int buttonWidth = 100;
         int buttonHeight = 24;
@@ -702,9 +749,13 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         int buttonYValue = 0;
         int sidePanelIsOpen = (int)GetWindowLongPtr(hwnd, NOTE_SIDE_PANEL_IS_OPEN);
 
-        int sidePanelWidth = sidePanelIsOpen ? 200 : 20;
+        int sidePanelWidth = sidePanelIsOpen ? 100 : 0;
         int sidePanelHeight = noteEditHeight;
+
+        int toggleButtonWidth = 24;
+        int toggleButtonHeight = 24;
         int toggleButtonXPos = sidePanelWidth;
+        int toggleButtonYPos = (sidePanelHeight / 2) + toggleButtonHeight;
 
         MoveWindow(pinButton, halfwayWindowXValue, buttonYValue, buttonWidth, buttonHeight, TRUE);
         MoveWindow(newNoteButton, halfwayWindowXValue + buttonWidth, buttonYValue, buttonWidth, buttonHeight, TRUE);
@@ -714,23 +765,46 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 //Fit text area on resize
        MoveWindow(titleEdit, 0, buttonHeight, windowWidth, titleEditHeight, TRUE);
        MoveWindow(textArea, 0, titleEditHeight + buttonHeight, windowWidth, noteEditHeight, TRUE);
- 
+
+         
+        ///////////////////////////////////////////////////////////////////////////////////////
+       ///                               Side Panel                                        ///
+      ///////////////////////////////////////////////////////////////////////////////////////
+        HWND sidePanel = GetDlgItem(hwnd, ID_SIDE_PANEL);
+        HWND sidePanelToggleButton = (HWND)GetDlgItem(hwnd, ID_SIDE_PANEL_TOGGLE);
+        HWND checkListButton = GetDlgItem(sidePanel, ID_PANEL_CHECKLIST);
+        HWND tagsButton = GetDlgItem(sidePanel, ID_PANEL_TAGS);
+        HWND boldButton = GetDlgItem(sidePanel, ID_PANEL_BOLD);
+        HWND italicButton = GetDlgItem(sidePanel, ID_PANEL_ITALIC);
+
+        HWND sidePanelButtons[SIDE_PANEL_BUTTON_COUNT] = { checkListButton, tagsButton,boldButton,italicButton };
+
+        int sidePanelButtonWidth = 50;
+        int sidePanelButtonHeight = 50;
+        int sidePanelButtonMargin = 20;
+
+        for (int i = 0; i < SIDE_PANEL_BUTTON_COUNT; i++) {
+            MoveWindow(sidePanelButtons[i], 0, sidePanelButtonMargin * (i +1), sidePanelButtonWidth, sidePanelButtonHeight, TRUE);
+
+        }
+
         if (sidePanelIsOpen) {
             MoveWindow(hwndSidePanel, 0, buttonHeight + titleEditHeight, sidePanelWidth, sidePanelHeight, TRUE);
             SetWindowPos(hwndSidePanel, HWND_TOP, 0, 0, 0, 0,
                 SWP_NOMOVE | SWP_NOSIZE);
 
-            MoveWindow(sidePanelToggleButton, toggleButtonXPos, sidePanelHeight / 2, BUTTON_HEIGHT, BUTTON_HEIGHT, TRUE);
+            MoveWindow(sidePanelToggleButton, toggleButtonXPos, toggleButtonYPos, toggleButtonWidth, toggleButtonHeight, TRUE);
             SetWindowPos(sidePanelToggleButton, HWND_TOP, 0, 0, 0, 0,
                 SWP_NOMOVE | SWP_NOSIZE);
 
         }
         else {
             MoveWindow(hwndSidePanel, 0, buttonHeight + titleEditHeight, sidePanelWidth, sidePanelHeight, TRUE);
+
             SetWindowPos(hwndSidePanel, HWND_TOP, 0, 0, 0, 0,
                 SWP_NOMOVE | SWP_NOSIZE);
 
-            MoveWindow(sidePanelToggleButton, toggleButtonXPos, sidePanelHeight / 2, BUTTON_HEIGHT, BUTTON_HEIGHT, TRUE);
+            MoveWindow(sidePanelToggleButton, toggleButtonXPos, toggleButtonYPos, toggleButtonWidth, toggleButtonHeight, TRUE);
             SetWindowPos(sidePanelToggleButton, HWND_TOP, 0, 0, 0, 0,
                 SWP_NOMOVE | SWP_NOSIZE);
         }
@@ -743,7 +817,6 @@ LRESULT CALLBACK NoteWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
     case WM_CLOSE:
     {
-        //SendMessage(hmainWindowHandle, WM_APP_NOTE_CLOSED, (WPARAM)hwnd, (LPARAM)hwnd);
         HWND hEdit = GetDlgItem(hwnd, ID_TEXT);
         HWND hTitleEdit = GetDlgItem(hwnd, ID_NOTE_TITLE);
 
