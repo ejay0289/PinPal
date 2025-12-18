@@ -32,18 +32,6 @@ No frameworks. No bloat. Just fast, direct Windows programming.
 
 ---
 
-## To do:
-- Add checklist
-- Keyboard shortcuts for quick note creation
-- System tray integration for quick access
-- Review design
-- [x]~~Search / Filter Notes~~
-- Reminders and notifications. Optional pop-up reminders for specific notes.
-- Custom Fonts & Text Styles
-- Transparent effect, because why not
-- Pinning important notes in the pinboard
-- Tagging / Categories
-
 ## Built With
 
 - **C (ISO C / MSVC)**
@@ -74,6 +62,19 @@ No frameworks. No bloat. Just fast, direct Windows programming.
 - Learn and leverage **real Win32 patterns**
 - Build something useful while understanding *exactly* how it works
 ---
+
+## To do:
+- Add checklist
+- Keyboard shortcuts for quick note creation
+- System tray integration for quick access
+- Review design
+- [x]~~Search / Filter Notes~~
+- Reminders and notifications. Optional pop-up reminders for specific notes.
+- Custom Fonts & Text Styles
+- Transparent effect, because why not
+- Pinning important notes in the pinboard
+- Tagging / Categories
+
 ## 🛠How To Build
 
 PinPal can be compiled using either the Microsoft Visual C++ compiler (via Visual Studio) or GCC (via MinGW-w64).
