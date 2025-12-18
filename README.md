@@ -100,7 +100,7 @@ cd PinPal
 
 2. Compile Resources: Use windres to compile the Windows resource script (icons, manifests, etc.) into a linkable object file:
 
-<pre>windres Resource.rc -O coff -o Resource.res</pre>
+<pre>windres Pinpals.rc -O coff -o Resource.res</pre>
 
 3. Compile and Link: Run the following command to build the executable. The -mwindows flag ensures the app launches without a console window attached.
 Bash
